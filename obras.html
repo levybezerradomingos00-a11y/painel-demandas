@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quadro de RT</title>
+<style>
+  /* layout: cabeçalho fino (status, busca de cliente, ações) + quadro de colunas por etapa, rolagem horizontal */
+  :root{
+    --bg:#0e1116; --txt:#e9edf3; --sub:#a3adbb; --mut:#6c7787;
+    --agu:#ffc94a; --orc:#5cb8ff; --fech:#38d39f; --alerta:#ffb547; --erro:#ff6b6b;
+    --hov:#ffffff0d; --vidro:#ffffff0f; --vidro-h:#ffffff17; --vidro-forte:#1a202acc; --coluna:#ffffff08;
+    --aro:#ffffff24; --brilho:#ffffff38; --sombra-v:#00000059;
+    --amb-1:#2a4d8f; --amb-2:#5b3a8c; --amb-3:#1d6b6b;
+    --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.4,.64,1);
+    --font:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+    --font-d:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+    color-scheme:dark;
+  }
+  :root[data-tema="claro"]{
+    --bg:#f3f5f8; --txt:#17202c; --sub:#4b5767; --mut:#8a95a4;
+    --agu:#e9a800; --orc:#2b7fd9; --fech:#17a571; --alerta:#c27800; --erro:#d83c41;
+    --hov:#17202c0d; --vidro:#ffffff8c; --vidro-h:#ffffffc4; --vidro-forte:#ffffffb3; --coluna:#ffffff4d;
+    --aro:#ffffffd9; --brilho:#ffffff; --sombra-v:#3b4f7024;
+    --amb-1:#b9d4ff; --amb-2:#f7d3e6; --amb-3:#c9f0e4;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--txt);font:13.5px/1.45 var(--font);display:flex;flex-direction:column;overflow:hidden;
+       user-select:none;-webkit-font-smoothing:antialiased;isolation:isolate}
+  body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;filter:blur(50px);
+    background:radial-gradient(35% 30% at 12% 15%,var(--amb-1),transparent 70%),
+               radial-gradient(30% 30% at 88% 30%,var(--amb-2),transparent 70%),
+               radial-gradient(40% 30% at 45% 100%,var(--amb-3),transparent 70%)}
+  button{font:inherit;color:inherit}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--orc);outline-offset:2px}
+  input{font:inherit;color:var(--txt);user-select:text}
+
+  /* ---------- cabeçalho ---------- */
+  header{display:flex;align-items:center;gap:14px;padding:16px 20px 12px;flex-wrap:wrap}
+  h1{margin:0;font:700 20px/1 var(--font-d);letter-spacing:.6px;display:flex;align-items:center;gap:11px}
+  .logo{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;color:var(--orc);
+    background:linear-gradient(160deg,var(--vidro-h),color-mix(in srgb,var(--orc) 16%,var(--vidro)));
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 6px 16px -8px color-mix(in srgb,var(--orc) 60%,transparent);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  .logo svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none}
+  .logo .p{fill:currentColor;stroke:none;opacity:.85}
+  .sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--sub);padding:4px 10px;border-radius:99px;
+    background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro)}
+  .sync i{width:7px;height:7px;border-radius:50%;background:var(--mut)}
+  .sync[data-s="ok"] i{background:var(--fech);box-shadow:0 0 0 3px color-mix(in srgb,var(--fech) 20%,transparent)}
+  .sync[data-s="enviando"] i{background:var(--alerta)}
+  .sync[data-s="offline"] i{background:var(--erro)}
+  .busca{margin-left:auto;display:flex;align-items:center;gap:8px;padding:0 12px;height:34px;border-radius:12px;width:min(280px,40vw);
+    background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro)}
+  .busca svg{width:14px;height:14px;stroke:var(--mut);stroke-width:2;fill:none;flex:none}
+  .busca input{border:0;background:transparent;outline:none;width:100%;font-size:13px}
+  .busca input::placeholder{color:var(--mut)}
+  .legenda{display:flex;gap:12px;font-size:12px;color:var(--sub)}
+  .legenda span{display:flex;align-items:center;gap:6px}
+  .legenda b{width:9px;height:9px;border-radius:3px}
+  .atualizar{display:flex;align-items:center;gap:8px;border:0;cursor:pointer;height:34px;padding:0 14px;border-radius:12px;font-size:12.5px;font-weight:600;
+    color:#fff;background:var(--orc);box-shadow:0 6px 16px -6px var(--orc);transition:transform .2s var(--spring), filter .2s}
+  .atualizar[hidden]{display:none}
+  .atualizar:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .atualizar i{width:7px;height:7px;border-radius:50%;background:#fff;animation:pulso 1.6s ease-in-out infinite}
+  .atualizar[data-s="baixando"]{cursor:progress;filter:saturate(.6)}
+  .atualizar[data-s="baixando"] i{animation-duration:.6s}
+  .atualizar[data-s="erro"]{background:var(--erro);box-shadow:0 6px 16px -6px var(--erro)}
+  @keyframes pulso{50%{opacity:.35;transform:scale(.7)}}
+  .icone{width:34px;height:34px;border:0;border-radius:11px;background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro);color:var(--sub);
+    cursor:pointer;display:grid;place-items:center;transition:background .15s,color .15s,transform .2s var(--spring)}
+  .icone svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.8;fill:none}
+  .icone:hover{background:var(--vidro-h);color:var(--txt)}
+  .icone:active{transform:scale(.92)}
+
+  /* ---------- quadro ---------- */
+  main{flex:1;min-height:0;display:flex;gap:12px;padding:4px 20px 20px;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
+  .col{flex:1 0 210px;max-width:320px;display:flex;flex-direction:column;min-height:0;border-radius:18px;background:var(--coluna);
+    box-shadow:inset 0 0 0 1px var(--aro);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:box-shadow .2s, background .2s}
+  /* poucos clientes: duas fileiras de 6 colunas, tudo à vista; coluna cheia: uma fileira com rolagem lateral */
+  main.duas{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));overflow:hidden}
+  main.duas .col{max-width:none;min-width:0}
+  .col.alvo{background:color-mix(in srgb,var(--orc) 8%,var(--coluna));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--orc) 45%,transparent)}
+  .col h2{margin:0;padding:13px 14px 9px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--sub);
+    display:flex;align-items:center;gap:8px}
+  .col h2 span{margin-left:auto;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums}
+  .cards{flex:1;min-height:40px;overflow-y:auto;padding:2px 10px 6px;display:flex;flex-direction:column;gap:7px;scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
+  .vazio{font-size:12px;color:var(--mut);text-align:center;padding:14px 6px;border:1px dashed var(--aro);border-radius:12px}
+
+  .card{position:relative;border-radius:14px;padding:10px 11px 9px;cursor:grab;background:var(--vidro);
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 4px 12px -6px var(--sombra-v);
+    -webkit-backdrop-filter:blur(16px) saturate(160%);backdrop-filter:blur(16px) saturate(160%);
+    transition:background .18s, box-shadow .2s, transform .18s var(--ease), opacity .2s}
+  .card:hover{background:var(--vidro-h);transform:translateY(-1px)}
+  .card.arrastando{opacity:.3}
+  .card.fech{box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1.5px color-mix(in srgb,var(--fech) 55%,transparent), 0 6px 16px -8px color-mix(in srgb,var(--fech) 50%,transparent);
+    background:linear-gradient(160deg,color-mix(in srgb,var(--fech) 12%,var(--vidro-h)),var(--vidro))}
+  .card.apagado{opacity:.25}
+  .card.destaque{box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 2px var(--orc), 0 8px 20px -8px color-mix(in srgb,var(--orc) 55%,transparent)}
+  .nome{font-weight:600;font-size:13.5px;word-break:break-word;outline:none;padding-right:22px}
+  .nome[contenteditable=true]{cursor:text;user-select:text;border-radius:6px;box-shadow:0 0 0 1px var(--aro);padding:1px 5px;margin:-1px -5px}
+  .marcas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .marca{border:0;cursor:pointer;display:flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:99px;font-size:11.5px;font-weight:600;
+    color:var(--mut);background:color-mix(in srgb,var(--txt) 5%,transparent);box-shadow:inset 0 0 0 1px var(--aro);transition:background .2s,color .2s,box-shadow .2s,transform .2s var(--spring)}
+  .marca:hover{color:var(--sub)}
+  .marca:active{transform:scale(.94)}
+  .marca svg{width:11px;height:11px;stroke:currentColor;stroke-width:2.6;fill:none}
+  .marca .vazioIco{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 0 0 1.5px currentColor}
+  .marca[data-m="agu"].on{color:#2b2000;background:var(--agu);box-shadow:none}
+  .marca[data-m="orc"].on{color:#fff;background:var(--orc);box-shadow:none}
+  .marca[data-m="fech"].on{color:#fff;background:var(--fech);box-shadow:none}
+  .rodapeCard{margin-top:7px;font-size:10.5px;color:var(--mut);display:flex;gap:6px}
+  .del{position:absolute;top:7px;right:7px;width:22px;height:22px;border:0;border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;
+    opacity:0;display:grid;place-items:center;transition:opacity .15s,background .15s}
+  .del svg{width:11px;height:11px;stroke:currentColor;stroke-width:2.2;fill:none}
+  .card:hover .del,.del:focus-visible{opacity:1}
+  .del:hover{background:var(--hov);color:var(--txt)}
+  .del.confirmar{opacity:1;width:auto;padding:0 8px;font-size:11px;font-weight:600;color:var(--erro);background:color-mix(in srgb,var(--erro) 14%,transparent)}
+  .marcador{height:3px;border-radius:99px;background:var(--orc);box-shadow:0 0 10px var(--orc);margin:-2px 4px}
+
+  .add{padding:8px 10px 10px}
+  .addBtn{width:100%;border:0;border-radius:11px;padding:8px;cursor:pointer;color:var(--mut);background:transparent;font-size:12.5px;
+    display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s,color .15s}
+  .addBtn svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none}
+  .addBtn:hover{background:var(--hov);color:var(--txt)}
+  .addCampo{width:100%;border:0;border-radius:11px;padding:9px 11px;outline:none;font-size:13px;
+    background:var(--vidro-h);box-shadow:inset 0 0 0 1px var(--aro), 0 0 0 3px color-mix(in srgb,var(--orc) 14%,transparent)}
+  .addCampo::placeholder{color:var(--mut)}
+
+  /* ---------- configuração ---------- */
+  #config{position:fixed;top:62px;right:20px;width:320px;z-index:5;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px;
+    background:var(--vidro-forte);box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 24px 50px -16px var(--sombra-v);
+    -webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+    opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top right;pointer-events:none;transition:opacity .18s var(--ease),transform .22s var(--ease)}
+  #config.aberto{opacity:1;transform:none;pointer-events:auto}
+  #config label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--mut)}
+  #config input{border:0;border-radius:10px;padding:8px 10px;outline:none;font-size:13px;letter-spacing:0;text-transform:none;font-weight:400;
+    background:color-mix(in srgb,var(--txt) 5%,transparent);box-shadow:inset 0 0 0 1px var(--aro)}
+  #config p{margin:0;font-size:12px;color:var(--sub);line-height:1.5}
+
+  /* entrada: o quadro "sai" do painel de demandas */
+  body.preparando header,body.preparando main{opacity:0}
+  body.entrada header{animation:surge .45s var(--ease) both}
+  body.entrada .col{animation:surge .5s var(--ease) both;animation-delay:calc(var(--i) * 25ms + 60ms)}
+  @keyframes surge{from{opacity:0;transform:translateX(-24px) scale(.97);filter:blur(8px)}}
+  body.saindo header,body.saindo main{opacity:0;transition:opacity .12s}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="logo" aria-hidden="true"><svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="3"/><path d="M7.5 3.5v13M12.5 3.5v13"/><rect x="4" y="6" width="2" height="3" rx=".6" class="p"/><rect x="9" y="6" width="2" height="5" rx=".6" class="p"/><rect x="14" y="6" width="2" height="2" rx=".6" class="p"/></svg></span>QUADRO DE RT</h1>
+  <span class="sync" id="sync" data-s="local"><i></i><span id="syncTxt">Só neste computador</span></span>
+  <div class="legenda"><span><b style="background:var(--agu)"></b>Aguardando orçamento</span><span><b style="background:var(--orc)"></b>Orçamento enviado</span><span><b style="background:var(--fech)"></b>Fechado</span></div>
+  <label class="busca"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3" stroke-linecap="round"/></svg>
+    <input id="busca" placeholder="Destacar cliente…" aria-label="Destacar cliente" list="clientes"></label>
+  <button class="atualizar" id="atualizar" type="button" hidden><i></i><span id="atualizarTxt"></span></button>
+  <button class="icone" id="configBtn" type="button" title="Configurações" aria-label="Configurações"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><circle cx="8" cy="8" r="4.6"/><path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5" stroke-linecap="round"/></svg></button>
+  <button class="icone" id="fechar" type="button" title="Minimizar (Win + F ou Esc)" aria-label="Minimizar"><svg viewBox="0 0 16 16"><path d="M3.5 8h9" stroke-linecap="round"/></svg></button>
+</header>
+<main id="quadro"></main>
+<datalist id="clientes"></datalist>
+
+<div id="config" role="dialog" aria-label="Configurações do quadro">
+  <label>Seu nome <input id="cfgNome" maxlength="30" placeholder="Ex.: Levy"></label>
+  <label>Endereço do Firebase <input id="cfgUrl" placeholder="https://…firebaseio.com"></label>
+  <label>Código do quadro <input id="cfgCodigo" maxlength="80"></label>
+  <p>Quem usar o mesmo endereço e o mesmo código vê o mesmo quadro. O seu nome aparece nos cartões que você alterar.</p>
+</div>
+
+<script>
+// ---------------- configuração ----------------
+const ETAPAS = [
+  ['marcenaria','Marcenaria'], ['iluminacao','Iluminação'], ['marmoraria','Marmoraria'], ['revestimentos','Revestimentos'],
+  ['automacao','Automação'], ['loucas','Louças e metais'], ['cortinas','Cortinas'], ['ilum_decorativa','Iluminação decorativa'],
+  ['decoracao','Decoração'], ['moveis','Móveis soltos'], ['vidracaria','Vidraçaria e espelhos'], ['serralheria','Serralheria']
+];
+const PADRAO = { url: 'https://quadro-de-obras-default-rtdb.firebaseio.com', codigo: '', nome: '' }; // código e nome vêm do app (quadro.txt), nunca do código publicado
+const KEY_CFG = 'obras-config', KEY_DADOS = 'obras-cache', KEY_FILA = 'obras-pendentes';
+const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch(e) { return d; } };
+const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} };
+let cfg = Object.assign({ nome: PADRAO.nome, url: PADRAO.url, codigo: PADRAO.codigo }, ler(KEY_CFG, {}));
+let cards = ler(KEY_DADOS, {});        // id -> {id, cliente, etapa, ordem, orc, fech, por, em}
+let fila = ler(KEY_FILA, {});          // id -> card (ou null para apagar) ainda não enviado
+const host = window.chrome && window.chrome.webview;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const ICO_X = '<svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg>';
+const ICO_OK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// tema: o mesmo escolhido no painel de demandas
+function aplicarTema(){
+  const t = (ler('painel-demandas-vista', {}).tema) || 'claro';
+  document.documentElement.dataset.tema = t;
+  try { host && host.postMessage('tema:' + t); } catch(e) {}
+}
+aplicarTema();
+addEventListener('storage', e => { if (e.key === 'painel-demandas-vista') aplicarTema(); });
+
+// ---------------- sincronização (Firebase Realtime Database, via REST) ----------------
+const base = () => cfg.url && cfg.codigo.length >= 24 ? `${cfg.url.replace(/\/+$/, '')}/quadros/${encodeURIComponent(cfg.codigo)}/cards` : null;
+let fonte = null, estado = 'local';
+function status(s, txt){
+  estado = s;
+  document.getElementById('sync').dataset.s = s;
+  document.getElementById('syncTxt').textContent = txt;
+}
+let backupEspera;
+function salvarLocal(){
+  gravar(KEY_DADOS, cards); gravar(KEY_FILA, fila);
+  clearTimeout(backupEspera);
+  backupEspera = setTimeout(() => { try { host && host.postMessage('backup:obras:' + JSON.stringify(cards)); } catch(e) {} }, 3000);
+}
+
+function conectar(){
+  if (fonte) { fonte.close(); fonte = null; }
+  const b = base();
+  if (!b) { status('local', 'Só neste computador'); return; }
+  status('enviando', 'Conectando…');
+  // fluxo ao vivo: o Firebase avisa cada mudança na hora
+  fonte = new EventSource(b + '.json');
+  const aplicar = (tipo, ev) => {
+    let d; try { d = JSON.parse(ev.data); } catch(e) { return; }
+    if (!d) return;
+    const partes = (d.path || '/').split('/').filter(Boolean);
+    if (partes.length === 0) {
+      if (tipo === 'put') {                       // estado completo
+        const remoto = d.data || {};
+        for (const id of Object.keys(cards)) if (!(id in remoto) && !(id in fila)) delete cards[id];
+        for (const [id, c] of Object.entries(remoto)) if (!(id in fila)) cards[id] = c;
+      } else for (const [id, c] of Object.entries(d.data || {})) if (!(id in fila)) { c ? cards[id] = c : delete cards[id]; }
+    } else {
+      const id = partes[0];
+      if (id in fila) return;                     // mudança local ainda não enviada vence
+      if (partes.length === 1) { d.data ? cards[id] = d.data : delete cards[id]; }
+      else if (cards[id]) cards[id][partes[1]] = d.data;
+    }
+    salvarLocal(); desenhar();
+    if (!Object.keys(fila).length) status('ok', 'Sincronizado');
+  };
+  fonte.addEventListener('put', ev => aplicar('put', ev));
+  fonte.addEventListener('patch', ev => aplicar('patch', ev));
+  fonte.addEventListener('open', () => { enviarFila(); });
+  fonte.onerror = () => status('offline', 'Sem conexão: as mudanças ficam guardadas aqui');
+}
+
+let enviando = false;
+async function enviarFila(){
+  const b = base(); if (!b || enviando) return;
+  const ids = Object.keys(fila); if (!ids.length) { if (estado !== 'offline') status('ok', 'Sincronizado'); return; }
+  enviando = true; status('enviando', 'Salvando…');
+  try {
+    for (const id of ids) {
+      const c = fila[id];
+      const r = await fetch(`${b}/${encodeURIComponent(id)}.json`, c ? { method: 'PUT', body: JSON.stringify(c) } : { method: 'DELETE' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (fila[id] === c) delete fila[id];
+    }
+    salvarLocal(); status('ok', 'Sincronizado');
+  } catch(e) {
+    status('offline', 'Sem conexão: as mudanças ficam guardadas aqui');
+  } finally { enviando = false; }
+}
+setInterval(enviarFila, 8000);
+addEventListener('online', () => { conectar(); });
+
+// toda alteração passa por aqui: grava local, desenha e envia
+function mudar(id, c){
+  if (c) { c.por = cfg.nome || ''; c.em = Date.now(); cards[id] = c; } else delete cards[id];
+  fila[id] = c || null;
+  salvarLocal(); desenhar(); enviarFila();
+}
+
+// ---------------- quadro ----------------
+let arrastandoId = null, filtro = '';
+const daEtapa = e => Object.values(cards).filter(c => c.etapa === e).sort((a, b) => a.ordem - b.ordem);
+const hora = t => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+
+function desenhar(){
+  const q = document.getElementById('quadro');
+  const rolagem = q.scrollLeft, rolCols = [...q.querySelectorAll('.cards')].map(c => c.scrollTop);
+  q.innerHTML = '';
+  ETAPAS.forEach(([id, nome], i) => {
+    const lista = daEtapa(id);
+    const col = document.createElement('section');
+    col.className = 'col'; col.dataset.etapa = id; col.style.setProperty('--i', i);
+    col.innerHTML = `<h2>${nome}<span>${lista.length || ''}</span></h2><div class="cards"></div>
+      <div class="add"><button class="addBtn" type="button"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>Adicionar cliente</button></div>`;
+    const box = col.querySelector('.cards');
+    if (!lista.length) box.innerHTML = '<div class="vazio">Nenhum cliente</div>';
+    for (const c of lista) box.append(cartao(c));
+    ligarColuna(col);
+    q.append(col);
+  });
+  q.scrollLeft = rolagem;
+  ajustarFileiras();
+  q.querySelectorAll('.cards').forEach((c, i) => c.scrollTop = rolCols[i] || 0);
+  const nomes = [...new Set(Object.values(cards).map(c => c.cliente))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  document.getElementById('clientes').innerHTML = nomes.map(n => `<option></option>`).join('');
+  [...document.getElementById('clientes').children].forEach((o, i) => o.value = nomes[i]);
+  aplicarFiltro();
+}
+
+// escolhe entre duas fileiras (cabe tudo) e uma fileira (alguma coluna passou da meia altura):
+// testa direto no layout de duas fileiras, no mesmo quadro de tela, sem piscar
+function ajustarFileiras(){
+  const q = document.getElementById('quadro');
+  if (!q.querySelector('.col')) return;
+  q.classList.add('duas');
+  const transborda = [...q.querySelectorAll('.cards')].some(b => b.scrollHeight > b.clientHeight + 1);
+  if (transborda) q.classList.remove('duas');
+}
+addEventListener('resize', () => ajustarFileiras());
+
+function cartao(c){
+  const el = document.createElement('div');
+  el.className = 'card' + (c.fech ? ' fech' : '');
+  el.draggable = true; el.dataset.id = c.id; el.dataset.cliente = c.cliente.toLowerCase();
+  el.innerHTML = `<div class="nome" title="Dois cliques para editar · clique para destacar o cliente"></div>
+    <div class="marcas">
+      <button class="marca${c.agu ? ' on' : ''}" data-m="agu" type="button">${c.agu ? ICO_OK : '<span class="vazioIco"></span>'}Aguardando orçamento</button>
+      <button class="marca${c.orc ? ' on' : ''}" data-m="orc" type="button">${c.orc ? ICO_OK : '<span class="vazioIco"></span>'}Orçamento enviado</button>
+      <button class="marca${c.fech ? ' on' : ''}" data-m="fech" type="button">${c.fech ? ICO_OK : '<span class="vazioIco"></span>'}Fechado</button>
+    </div>
+    ${c.em ? `<div class="rodapeCard">${c.por ? `<span></span><span>·</span>` : ''}<span>${hora(c.em)}</span></div>` : ''}
+    <button class="del" type="button" title="Excluir" aria-label="Excluir">${ICO_X}</button>`;
+  el.querySelector('.nome').textContent = c.cliente;
+  if (c.por) el.querySelector('.rodapeCard span').textContent = c.por;
+  el.querySelectorAll('.marca').forEach(b => b.onclick = () => mudar(c.id, Object.assign({}, c, { [b.dataset.m]: !c[b.dataset.m] })));
+  // clique no nome destaca o cliente em todas as colunas
+  const nome = el.querySelector('.nome');
+  nome.onclick = () => { if (nome.contentEditable === 'true') return; const b = document.getElementById('busca'); b.value = b.value === c.cliente ? '' : c.cliente; filtro = b.value.toLowerCase(); aplicarFiltro(); };
+  nome.ondblclick = () => { nome.contentEditable = true; el.draggable = false; nome.focus(); document.getSelection().selectAllChildren(nome); };
+  const fim = ok => {
+    if (nome.contentEditable !== 'true') return;
+    nome.contentEditable = false; el.draggable = true;
+    const v = nome.textContent.trim();
+    if (ok && v && v !== c.cliente) mudar(c.id, Object.assign({}, c, { cliente: v })); else nome.textContent = c.cliente;
+  };
+  nome.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fim(true); } if (e.key === 'Escape') fim(false); };
+  nome.onblur = () => fim(true);
+  // excluir em dois cliques
+  const del = el.querySelector('.del'); let espera;
+  del.onclick = () => {
+    if (del.classList.contains('confirmar')) { clearTimeout(espera); mudar(c.id, null); return; }
+    del.classList.add('confirmar'); del.textContent = 'Excluir?';
+    espera = setTimeout(() => { del.classList.remove('confirmar'); del.innerHTML = ICO_X; }, 2500);
+  };
+  el.addEventListener('dragstart', e => { arrastandoId = c.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', c.id); setTimeout(() => el.classList.add('arrastando')); });
+  el.addEventListener('dragend', () => { arrastandoId = null; el.classList.remove('arrastando'); limparAlvos(); });
+  return el;
+}
+
+function limparAlvos(){ document.querySelectorAll('.marcador').forEach(m => m.remove()); document.querySelectorAll('.col.alvo').forEach(c => c.classList.remove('alvo')); }
+function posicao(box, y){
+  const cs = [...box.querySelectorAll('.card:not(.arrastando)')];
+  for (let i = 0; i < cs.length; i++) { const r = cs[i].getBoundingClientRect(); if (y < r.top + r.height / 2) return { i, antes: cs[i] }; }
+  return { i: cs.length, antes: null };
+}
+
+function ligarColuna(col){
+  const etapa = col.dataset.etapa, box = col.querySelector('.cards');
+  col.addEventListener('dragover', e => {
+    if (!arrastandoId) return; e.preventDefault();
+    document.querySelectorAll('.col.alvo').forEach(x => x !== col && x.classList.remove('alvo')); col.classList.add('alvo');
+    const { antes } = posicao(box, e.clientY), atual = box.querySelector('.marcador');
+    if (atual && atual.nextElementSibling === antes) return;
+    document.querySelectorAll('.marcador').forEach(m => m.remove());
+    const m = document.createElement('div'); m.className = 'marcador'; antes ? box.insertBefore(m, antes) : box.append(m);
+  });
+  col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) { col.classList.remove('alvo'); col.querySelector('.marcador')?.remove(); } });
+  col.addEventListener('drop', e => {
+    e.preventDefault(); const c = cards[arrastandoId]; if (!c) return;
+    const { i } = posicao(box, e.clientY);
+    const lista = daEtapa(etapa).filter(x => x.id !== c.id);
+    // ordem entre os vizinhos: só o cartão movido muda (bom para duas pessoas mexendo juntas)
+    const a = lista[i - 1], b = lista[i];
+    const ordem = a && b ? (a.ordem + b.ordem) / 2 : a ? a.ordem + 1 : b ? b.ordem - 1 : 0;
+    limparAlvos(); mudar(c.id, Object.assign({}, c, { etapa, ordem }));
+  });
+  // adicionar cliente nesta coluna
+  const add = col.querySelector('.add');
+  add.querySelector('.addBtn').onclick = () => {
+    add.innerHTML = '<input class="addCampo" maxlength="80" placeholder="Nome do cliente… (Enter)" list="clientes">';
+    const inp = add.querySelector('input'); inp.focus();
+    let feito = false; // Enter e "sair do campo" não podem salvar duas vezes
+    const salvar = () => {
+      if (feito) return; feito = true;
+      const v = inp.value.trim();
+      if (v) { const l = daEtapa(etapa); const id = uid(); mudar(id, { id, cliente: v, etapa, ordem: l.length ? l[l.length - 1].ordem + 1 : 0, agu: false, orc: false, fech: false }); }
+      else desenhar();
+    };
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); salvar(); setTimeout(() => col.querySelector('.addBtn')?.click()); } if (e.key === 'Escape') { feito = true; desenhar(); } };
+    inp.onblur = () => setTimeout(() => { if (!feito && inp.isConnected && document.activeElement !== inp) salvar(); }, 100);
+  };
+}
+
+function aplicarFiltro(){
+  document.querySelectorAll('.card').forEach(el => {
+    el.classList.toggle('destaque', !!filtro && el.dataset.cliente === filtro);
+    el.classList.toggle('apagado', !!filtro && !el.dataset.cliente.includes(filtro));
+  });
+}
+document.getElementById('busca').addEventListener('input', e => { filtro = e.target.value.trim().toLowerCase(); aplicarFiltro(); });
+
+// ---------------- configurações ----------------
+const configEl = document.getElementById('config');
+document.getElementById('configBtn').onclick = e => { e.stopPropagation(); configEl.classList.toggle('aberto'); };
+configEl.onclick = e => e.stopPropagation();
+document.addEventListener('click', () => configEl.classList.remove('aberto'));
+const cfgNome = document.getElementById('cfgNome'), cfgUrl = document.getElementById('cfgUrl'), cfgCodigo = document.getElementById('cfgCodigo');
+cfgNome.value = cfg.nome; cfgUrl.value = cfg.url; cfgCodigo.value = cfg.codigo;
+cfgNome.onchange = () => { cfg.nome = cfgNome.value.trim(); gravar(KEY_CFG, cfg); };
+cfgUrl.onchange = cfgCodigo.onchange = () => { cfg.url = cfgUrl.value.trim(); cfg.codigo = cfgCodigo.value.trim(); gravar(KEY_CFG, cfg); conectar(); };
+
+// ---------------- janela (abrir/fechar com Win + F, controlado pelo abrir-painel.ps1) ----------------
+function preparar(){ document.body.classList.remove('entrada', 'saindo'); document.body.classList.add('preparando'); }
+function entrar(){
+  document.body.classList.remove('preparando', 'saindo'); void document.body.offsetWidth;
+  document.body.classList.add('entrada'); setTimeout(() => document.body.classList.remove('entrada'), 1000);
+  aplicarTema();
+}
+function sair(){ document.body.classList.add('saindo'); }
+document.getElementById('fechar').onclick = () => { host ? host.postMessage('fechar') : null; };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (configEl.classList.contains('aberto')) configEl.classList.remove('aberto'); else if (host) host.postMessage('fechar'); }
+});
+
+// rodinha do mouse fora de uma lista rolável: rola o quadro para os lados
+const quadroEl = document.getElementById('quadro');
+quadroEl.addEventListener('wheel', e => {
+  const lista = e.target.closest('.cards');
+  if (lista && lista.scrollHeight > lista.clientHeight) return;
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { quadroEl.scrollLeft += e.deltaY; e.preventDefault(); }
+}, { passive: false });
+
+// mensagens do app: código do quadro, nome, atualizações
+const botaoAtualizar = document.getElementById('atualizar');
+function mostrarAtualizacao(estado, texto){
+  botaoAtualizar.hidden = false; botaoAtualizar.dataset.s = estado;
+  document.getElementById('atualizarTxt').textContent = texto;
+}
+if (host) {
+  host.addEventListener('message', e => {
+    let d; try { d = JSON.parse(e.data); } catch(err) { return; }
+    if (d.quadro && !cfg.codigo) { cfg.codigo = d.quadro; cfgCodigo.value = cfg.codigo; gravar(KEY_CFG, cfg); conectar(); }
+    const nome = d.nome || d.usuario;
+    if (nome && !cfg.nome) { cfg.nome = nome; cfgNome.value = cfg.nome; gravar(KEY_CFG, cfg); }
+    if (d.atualizacao) mostrarAtualizacao('pronta', `Nova versão ${d.atualizacao} · Atualizar`);
+    if (d.atualizando) mostrarAtualizacao('baixando', 'Atualizando…');
+    if (d.erroAtualizacao) mostrarAtualizacao('erro', 'Não foi possível atualizar · Tentar de novo');
+  });
+  host.postMessage('quadro?');
+  host.postMessage('versao?');
+}
+botaoAtualizar.onclick = () => { if (botaoAtualizar.dataset.s !== 'baixando' && host) host.postMessage('atualizar'); };
+
+desenhar();
+conectar();
+</script>
+</body>
+</html>

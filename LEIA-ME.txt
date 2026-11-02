@@ -1,0 +1,35 @@
+PAINEL DE DEMANDAS
+==================
+
+Instalar
+  1. Extraia o .zip inteiro (botao direito > Extrair tudo).
+  2. Dentro da pasta, de dois cliques em INSTALAR.bat.
+     Se o Windows avisar "O Windows protegeu o computador",
+     clique em "Mais informacoes" e depois em "Executar assim mesmo".
+  3. O painel abre na esquerda do monitor e passa a abrir
+     sozinho sempre que o Windows ligar.
+
+Usar
+  - Escreva a demanda no rodape, escolha Alta/Media/Baixa e aperte Enter.
+  - Arraste para reordenar ou mudar a prioridade.
+  - Clique no circulo (ou arraste para a area verde) para concluir.
+  - Dois cliques numa demanda para editar.
+  - Icone de lua/sol: tema escuro/claro. "Visualizacao": filtros e lista unica.
+  - Win + Espaco: esconde/mostra o painel.
+  - Win + F: abre/fecha o Quadro de RT, compartilhado em tempo real.
+    (Enquanto ele roda, a troca de idioma do teclado fica no Alt + Shift.)
+  - Para fechar: clique no painel e aperte Alt + F4.
+
+Ajustes
+  Largura e monitor: primeiras linhas do arquivo
+  %LOCALAPPDATA%\PainelDemandas\app\abrir-painel.ps1
+  ($Largura e $Monitor). Com 2 monitores, ele usa o maior que
+  nao e o principal; com 1 monitor, usa o principal.
+
+Desinstalar
+  Dois cliques em DESINSTALAR.bat.
+
+Requisitos
+  Windows 10 ou 11 com o WebView2 (ja vem no Windows 11 e na
+  maioria dos Windows 10; se faltar, instale o "WebView2 Runtime"
+  no site da Microsoft).

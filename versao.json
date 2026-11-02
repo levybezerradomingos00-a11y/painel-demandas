@@ -1,0 +1,12 @@
+{
+  "versao": "1.1.0",
+  "notas": "Quadro de RT em tela cheia, botao minimizar, duas fileiras de colunas, atualizacao automatica e backup das demandas e dos clientes.",
+  "arquivos": {
+    "index.html": "4a79f7bf5fd913befe743967f0b54fb885a35234b404314affd13056191ff022",
+    "obras.html": "eb51e3978753bda80563b592b393ab04f5483b772db1ad540478633451ca8cf8",
+    "abrir-painel.ps1": "edaceda7b25497a305a900924cb2de641c0616c40cc5c82871f098d1e226159b",
+    "lib/Microsoft.Web.WebView2.Core.dll": "8219a3135436c147f8eb02fb831e99596103eebc18b6d7b794ca93f4c67018a2",
+    "lib/Microsoft.Web.WebView2.WinForms.dll": "c48f8d729dc531288d2c53a6241effe7922ed1b947850b2442008a945c098c48",
+    "lib/WebView2Loader.dll": "eb5335edeaa6f2122c044e82aab2351dc8c9b4e0fe5e578c71922fb61be285e7"
+  }
+}

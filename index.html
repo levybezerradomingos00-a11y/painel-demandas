@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demandas</title>
+<style>
+  /* layout: coluna estreita — cabeçalho com progresso, lista rolável por prioridade, rodapé de entrada */
+  :root{
+    --bg:#0e1116; --raise:#151a21; --card:#1a2029; --card-h:#202733; --edge:#262e3a; --edge-2:#323c4b;
+    --txt:#e9edf3; --sub:#a3adbb; --mut:#6c7787;
+    --alta:#ff6b6b; --media:#ffb547; --baixa:#5cb8ff; --ok:#38d39f;
+    --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.4,.64,1);
+    --font:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+    --font-d:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+    --hov:#ffffff0d; --hov-2:#ffffff06; --sh-1:#0006; --sh-2:#000a; --sh-3:#000c; --veu:#0009;
+    --vidro:#ffffff0f; --vidro-h:#ffffff17; --vidro-forte:#1a202acc; --aro:#ffffff24; --brilho:#ffffff38; --sombra-v:#00000059;
+    --amb-1:#2a4d8f; --amb-2:#5b3a8c; --amb-3:#1d6b6b;
+    color-scheme:dark;
+  }
+  :root[data-tema="claro"]{
+    --bg:#f3f5f8; --raise:#ffffff; --card:#ffffff; --card-h:#f8fafc; --edge:#e2e7ee; --edge-2:#cbd3dd;
+    --txt:#17202c; --sub:#4b5767; --mut:#8a95a4;
+    --alta:#e5484d; --media:#d68400; --baixa:#2b7fd9; --ok:#17a571;
+    --hov:#17202c0d; --hov-2:#17202c08; --sh-1:#1a2b4014; --sh-2:#1a2b4026; --sh-3:#1a2b4033; --veu:#1a2b4033;
+    --vidro:#ffffff8c; --vidro-h:#ffffffb8; --vidro-forte:#ffffffb3; --aro:#ffffffd9; --brilho:#ffffff; --sombra-v:#3b4f7024;
+    --amb-1:#b9d4ff; --amb-2:#f7d3e6; --amb-3:#c9f0e4;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--txt);font:13.5px/1.45 var(--font);
+       display:flex;flex-direction:column;user-select:none;overflow:hidden;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--baixa);outline-offset:2px}
+
+  /* ---------- cabeçalho ---------- */
+  header{padding:20px 20px 14px;display:flex;flex-direction:column;gap:12px}
+  .top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  h1{margin:0;font:600 22px/1 var(--font-d);letter-spacing:-.2px}
+  .date{color:var(--mut);font-size:12px;text-transform:capitalize}
+  .stats{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+  .bar{flex:1;height:6px;background:var(--raise);border-radius:99px;overflow:hidden;box-shadow:inset 0 0 0 1px var(--edge)}
+  .bar i{display:block;height:100%;width:0;border-radius:99px;
+         background:linear-gradient(90deg,#2bb989,var(--ok));transition:width .6s var(--ease)}
+
+  /* ---------- lista ---------- */
+  main{flex:1;overflow-y:auto;padding:4px 12px 20px;scrollbar-width:thin;scrollbar-color:var(--edge) transparent}
+  section{margin-top:14px}
+  section:first-child{margin-top:4px}
+  section h2{margin:0 8px 8px;font-size:11px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;
+        display:flex;align-items:center;gap:8px;color:var(--sub)}
+  section h2::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
+  section h2 span{margin-left:auto;color:var(--mut);font-weight:500;font-variant-numeric:tabular-nums}
+  .lista{min-height:44px;border-radius:12px;padding:2px;display:flex;flex-direction:column;gap:6px;
+         transition:background .2s var(--ease), box-shadow .2s var(--ease)}
+  .lista.alvo{background:color-mix(in srgb,var(--c) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 30%,transparent)}
+  .vazio{color:var(--mut);font-size:12px;padding:12px 10px;border:1px dashed var(--edge);border-radius:10px;text-align:center}
+
+  .card{position:relative;display:flex;align-items:center;gap:11px;background:var(--card);
+        border-radius:11px;padding:10px 10px 10px 11px;cursor:grab;
+        box-shadow:0 0 0 1px var(--edge), 0 1px 2px var(--sh-1);
+        transition:background .18s var(--ease), box-shadow .18s var(--ease), transform .18s var(--ease), opacity .18s}
+  .card:hover{background:var(--card-h);box-shadow:0 0 0 1px var(--edge-2), 0 6px 16px -8px var(--sh-2);transform:translateY(-1px)}
+  .card:active{cursor:grabbing}
+  .card.arrastando{opacity:.3;transform:scale(.98)}
+  .card.agora{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 9%,var(--card)),var(--card));
+        box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 45%,transparent), 0 8px 24px -12px color-mix(in srgb,var(--c) 60%,transparent);}
+
+  .check{flex:none;width:20px;height:20px;border-radius:50%;border:1.6px solid color-mix(in srgb,var(--c) 70%,var(--mut));
+        background:transparent;cursor:pointer;padding:0;display:grid;place-items:center;
+        transition:background .2s var(--ease), border-color .2s, transform .2s var(--spring)}
+  .check svg{width:11px;height:11px;stroke:var(--bg);stroke-width:3;fill:none;stroke-dasharray:16;stroke-dashoffset:16;transition:stroke-dashoffset .3s var(--ease) .05s}
+  .check:hover{background:color-mix(in srgb,var(--c) 18%,transparent);transform:scale(1.1)}
+  .check:hover svg{stroke:var(--c);stroke-dashoffset:0}
+  .card.feita .check{background:var(--ok);border-color:var(--ok);transform:scale(1.15)}
+  .card.feita .check svg{stroke:var(--bg);stroke-dashoffset:0}
+  .card.feita .t{color:var(--mut);text-decoration:line-through;text-decoration-color:var(--mut)}
+
+  .corpo{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+  .t{word-break:break-word;outline:none;transition:color .25s}
+  .t[contenteditable=true]{user-select:text;cursor:text;background:var(--bg);border-radius:6px;padding:2px 6px;margin:-2px -6px;
+        box-shadow:0 0 0 1px var(--edge-2)}
+  .tag{align-self:flex-start;font-size:9.5px;font-weight:700;letter-spacing:1.1px;color:var(--c);
+       background:color-mix(in srgb,var(--c) 14%,transparent);border-radius:99px;padding:2px 8px}
+
+  .lado{flex:none;position:relative;width:28px;height:28px;display:grid;place-items:center}
+  .n{color:var(--mut);font-size:11.5px;font-variant-numeric:tabular-nums;transition:opacity .15s}
+  .del{position:absolute;inset:0;border:0;border-radius:8px;background:transparent;color:var(--mut);cursor:pointer;
+       opacity:0;display:grid;place-items:center;transition:opacity .15s, background .15s, color .15s, width .2s var(--ease)}
+  .del svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
+  .card:hover .n{opacity:0}
+  .card:hover .del,.del:focus-visible{opacity:1}
+  .del:hover{background:var(--hov);color:var(--txt)}
+  .del.confirmar{opacity:1;inset:0 0 0 auto;width:72px;background:color-mix(in srgb,var(--alta) 16%,transparent);color:var(--alta);font-size:11.5px;font-weight:600}
+  .card:has(.del.confirmar) .n{opacity:0}
+
+  .marcador{height:3px;border-radius:99px;background:var(--c);box-shadow:0 0 10px var(--c);margin:-1px 6px;animation:aparece .15s var(--ease)}
+  @keyframes aparece{from{opacity:0;transform:scaleX(.6)}}
+
+  /* ---------- rodapé ---------- */
+  form{padding:12px 14px 14px;background:var(--raise);border-top:1px solid var(--edge);display:flex;flex-direction:column;gap:10px;
+       box-shadow:0 -12px 24px -16px var(--sh-2)}
+  .prios{position:relative;display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg);border-radius:10px;padding:3px;
+         box-shadow:inset 0 0 0 1px var(--edge)}
+  .prios .ind{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px)/3);border-radius:8px;
+         background:color-mix(in srgb,var(--pc) 16%,var(--card));box-shadow:0 0 0 1px color-mix(in srgb,var(--pc) 45%,transparent);
+         transform:translateX(calc(var(--i) * 100%));transition:transform .32s var(--spring), background .25s, box-shadow .25s}
+  .prios button{position:relative;border:0;background:transparent;color:var(--mut);padding:7px 0;font-size:12px;font-weight:500;
+         cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:6px;transition:color .2s}
+  .prios button::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--bc);opacity:.55;transition:opacity .2s}
+  .prios button:hover{color:var(--sub)}
+  .prios button.on{color:var(--txt)}
+  .prios button.on::before{opacity:1}
+
+  .entrada{display:flex;gap:8px}
+  #novo{flex:1;min-width:0;background:var(--bg);border:0;box-shadow:inset 0 0 0 1px var(--edge);color:var(--txt);
+        border-radius:10px;padding:11px 13px;font:inherit;outline:none;user-select:text;transition:box-shadow .2s var(--ease)}
+  #novo::placeholder{color:var(--mut)}
+  #novo:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pc) 60%,transparent), 0 0 0 4px color-mix(in srgb,var(--pc) 12%,transparent)}
+  #add{flex:none;width:42px;border:0;border-radius:10px;cursor:pointer;background:var(--pc);color:var(--bg);display:grid;place-items:center;
+       transition:transform .2s var(--spring), filter .2s, background .25s}
+  #add svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.6;fill:none}
+  #add:hover{filter:brightness(1.1);transform:scale(1.05)}
+  #add:active{transform:scale(.92)}
+  .rodape{display:flex;align-items:center;gap:8px;min-height:24px}
+  #temaBtn{margin-left:auto;}
+  #vistaBtn{display:flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--mut);
+        font-size:12px;padding:4px 8px;border-radius:7px;cursor:pointer;transition:background .15s,color .15s}
+  #vistaBtn svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none}
+  #vistaBtn:hover,#vistaBtn.on{background:var(--hov);color:var(--txt)}
+  #temaBtn{position:relative;width:28px;height:26px;border:0;border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;
+        display:grid;place-items:center;transition:background .15s,color .15s}
+  #temaBtn:hover{background:var(--hov);color:var(--txt)}
+  #temaBtn svg{grid-area:1/1;width:15px;height:15px;stroke:currentColor;stroke-width:1.7;fill:none;transition:transform .45s var(--spring), opacity .25s}
+  :root[data-tema="claro"] #temaBtn .sol,:root:not([data-tema="claro"]) #temaBtn .lua{opacity:0;transform:rotate(-90deg) scale(.5)}
+  #vistaBtn .pt{width:6px;height:6px;border-radius:50%;background:var(--baixa);display:none}
+  #vistaBtn.filtrado .pt{display:block}
+  form{position:relative}
+  #vista{position:absolute;left:14px;right:14px;bottom:calc(100% + 8px);background:var(--card);border-radius:14px;padding:14px;z-index:3;
+        box-shadow:0 0 0 1px var(--edge-2), 0 16px 40px -10px var(--sh-3);display:flex;flex-direction:column;gap:14px;
+        opacity:0;transform:translateY(8px) scale(.98);transform-origin:bottom right;pointer-events:none;
+        transition:opacity .18s var(--ease), transform .22s var(--ease)}
+  #vista.aberto{opacity:1;transform:none;pointer-events:auto}
+  .grupo{display:flex;flex-direction:column;gap:7px}
+  .rot{font-size:10.5px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;color:var(--mut)}
+  .modos{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .modos button,.chips button{border:0;background:var(--bg);color:var(--sub);border-radius:9px;padding:8px 6px;font-size:12px;cursor:pointer;
+        box-shadow:inset 0 0 0 1px var(--edge);display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s,box-shadow .15s}
+  .modos button svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none}
+  .modos button:hover,.chips button:hover{color:var(--txt)}
+  .modos button.on{background:var(--card-h);color:var(--txt);box-shadow:inset 0 0 0 1px var(--edge-2)}
+  .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .chips button::before{content:"";width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--fc);transition:background .15s}
+  .chips button.on{color:var(--txt);background:color-mix(in srgb,var(--fc) 12%,var(--bg));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fc) 40%,transparent)}
+  .chips button.on::before{background:var(--fc)}
+  #verFeitas{background:transparent;border:0;color:var(--mut);font-size:12px;cursor:pointer;padding:2px 0;
+        display:flex;align-items:center;gap:6px;transition:color .15s}
+  #verFeitas::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ok)}
+  #verFeitas:hover{color:var(--txt)}
+  #verFeitas:empty{display:none}
+
+  /* ---------- zona de concluir (aparece ao arrastar) ---------- */
+  #concluir{position:fixed;left:14px;right:14px;bottom:14px;height:118px;border-radius:14px;z-index:4;
+        border:1.5px dashed color-mix(in srgb,var(--ok) 70%,transparent);color:var(--ok);background:color-mix(in srgb,var(--ok) 7%,var(--raise));
+        display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;
+        opacity:0;transform:translateY(16px) scale(.97);pointer-events:none;transition:opacity .2s var(--ease), transform .25s var(--ease), background .2s}
+  #concluir svg{width:18px;height:18px;stroke:currentColor;stroke-width:2.6;fill:none}
+  body.drag #concluir{opacity:1;transform:none;pointer-events:auto}
+  #concluir.alvo{background:color-mix(in srgb,var(--ok) 18%,var(--raise));border-style:solid;transform:scale(1.02)}
+
+  /* ---------- gaveta de concluídas ---------- */
+  #veu{position:fixed;inset:0;background:var(--veu);opacity:0;pointer-events:none;transition:opacity .25s;z-index:5}
+  #veu.aberto{opacity:1;pointer-events:auto}
+  #feitas{position:fixed;left:0;right:0;bottom:0;max-height:62%;background:var(--raise);border-radius:16px 16px 0 0;
+        box-shadow:0 -1px 0 var(--edge), 0 -20px 40px var(--sh-2);transform:translateY(105%);transition:transform .35s var(--ease);
+        display:flex;flex-direction:column;z-index:6}
+  #feitas.aberto{transform:none}
+  #feitas .cab{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 10px}
+  #feitas .cab b{font:600 15px var(--font-d)}
+  #fecharFeitas{width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--mut);cursor:pointer;font-size:18px;line-height:1}
+  #fecharFeitas:hover{background:var(--hov);color:var(--txt)}
+  #feitas ul{list-style:none;margin:0;padding:0 12px 16px;overflow:auto}
+  #feitas li{display:flex;gap:10px;align-items:center;padding:9px 8px;border-radius:9px;color:var(--sub)}
+  #feitas li:hover{background:var(--hov-2)}
+  #feitas li::before{content:"";flex:none;width:16px;height:16px;border-radius:50%;background:var(--ok);
+        -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8'/%3E%3C/svg%3E")}
+  #feitas li s{flex:1;text-decoration-color:var(--mut)}
+  #feitas li small{color:var(--mut);font-size:11px;font-variant-numeric:tabular-nums}
+  #feitas li button{background:transparent;border:0;box-shadow:inset 0 0 0 1px var(--edge-2);color:var(--sub);border-radius:7px;
+        font-size:11px;padding:4px 9px;cursor:pointer;transition:background .15s,color .15s}
+  #feitas li button:hover{background:var(--hov);color:var(--txt)}
+
+  /* ================= Liquid Glass ================= */
+  /* fundo ambiente: manchas suaves de cor que o vidro desfoca e refrata */
+  body{background:var(--bg);isolation:isolate}
+  body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;filter:blur(40px);
+    background:radial-gradient(40% 30% at 15% 20%,var(--amb-1),transparent 70%),
+               radial-gradient(35% 28% at 90% 55%,var(--amb-2),transparent 70%),
+               radial-gradient(45% 30% at 30% 95%,var(--amb-3),transparent 70%);}
+
+  .vidro,.card,form,#vista,#feitas,#concluir,.bar{
+    -webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%)}
+  .card{background:var(--vidro);border-radius:16px;
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 4px 14px -6px var(--sombra-v)}
+  .card:hover{background:var(--vidro-h);transform:translateY(-1px) scale(1.005);
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 10px 26px -10px var(--sombra-v)}
+  .card.agora{background:linear-gradient(160deg,color-mix(in srgb,var(--c) 14%,var(--vidro-h)),var(--vidro));
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px color-mix(in srgb,var(--c) 40%,var(--aro)),
+               0 12px 30px -12px color-mix(in srgb,var(--c) 55%,transparent)}
+  /* brilho especular que acompanha o mouse */
+  .card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .25s;
+    background:radial-gradient(120px 80px at var(--mx,50%) var(--my,0%),color-mix(in srgb,var(--brilho) 45%,transparent),transparent 70%)}
+  .card:hover::after{opacity:1}
+  .bar{background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro)}
+  .vazio{border-color:var(--aro);background:color-mix(in srgb,var(--vidro) 50%,transparent)}
+
+  /* rodapé flutuante, como a barra de abas do iOS */
+  form{margin:0 10px 10px;border-radius:22px;border-top:0;background:var(--vidro-forte);
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 18px 40px -14px var(--sombra-v), 0 2px 6px -2px var(--sombra-v);
+    -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
+    backdrop-filter:url(#refracao) blur(28px) saturate(180%)}
+  .prios{background:color-mix(in srgb,var(--txt) 5%,transparent);border-radius:14px;box-shadow:inset 0 1px 2px var(--sombra-v)}
+  .prios .ind{border-radius:11px;background:linear-gradient(180deg,var(--brilho),color-mix(in srgb,var(--pc) 14%,var(--vidro-h)));
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px color-mix(in srgb,var(--pc) 35%,var(--aro)), 0 4px 12px -4px color-mix(in srgb,var(--pc) 50%,transparent)}
+  :root:not([data-tema="claro"]) .prios .ind{background:color-mix(in srgb,var(--pc) 22%,var(--vidro-h))}
+  #novo{background:color-mix(in srgb,var(--txt) 4%,transparent);border-radius:14px;box-shadow:inset 0 1px 2px var(--sombra-v), inset 0 0 0 1px var(--aro)}
+  #add{border-radius:14px;box-shadow:inset 0 1px 0 #ffffff66, 0 6px 14px -6px var(--pc)}
+  #vista{background:var(--vidro-forte);border-radius:20px;
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 24px 50px -16px var(--sombra-v);
+    -webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%)}
+  .modos button,.chips button{background:color-mix(in srgb,var(--txt) 4%,transparent);border-radius:11px;box-shadow:inset 0 0 0 1px var(--aro)}
+  .modos button.on{background:var(--vidro-h);box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 3px 8px -4px var(--sombra-v)}
+  #veu{background:var(--veu);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #feitas{background:var(--vidro-forte);border-radius:24px 24px 0 0;
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 -20px 50px -10px var(--sombra-v);
+    -webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%)}
+  #concluir{border-radius:22px;background:color-mix(in srgb,var(--ok) 12%,var(--vidro-forte))}
+  #concluir.alvo{background:color-mix(in srgb,var(--ok) 24%,var(--vidro-forte))}
+  main{padding-bottom:14px}
+
+  /* entrada ao reaparecer (Win+Espaço): o vidro "se forma" e um reflexo atravessa o painel */
+  body.entrada header,body.entrada main section,body.entrada form{animation:forma .6s var(--ease) both}
+  body.entrada main section:nth-child(1){animation-delay:.05s}
+  body.entrada main section:nth-child(2){animation-delay:.1s}
+  body.entrada main section:nth-child(3){animation-delay:.15s}
+  body.entrada form{animation-delay:.12s}
+  @keyframes forma{from{opacity:0;transform:translateX(-28px) scale(.97);filter:blur(10px)}}
+  body::after{content:"";position:fixed;inset:-10% auto -10% -60%;width:45%;pointer-events:none;z-index:9;opacity:0;
+    background:linear-gradient(100deg,transparent,color-mix(in srgb,var(--brilho) 55%,transparent) 50%,transparent);
+    transform:skewX(-12deg)}
+  body.entrada::after{animation:reflexo .9s .1s var(--ease) both}
+  @keyframes reflexo{0%{opacity:0;left:-60%}25%{opacity:1}100%{opacity:0;left:120%}}
+
+  /* ---------- micro demandas ---------- */
+  .lado{width:auto;gap:2px;display:flex;align-items:center}
+  .ladoN{position:relative;width:28px;height:28px;display:grid;place-items:center}
+  .subBtn{flex:none;width:26px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--mut);cursor:pointer;
+    display:grid;place-items:center;opacity:0;transform:scale(.85);transition:opacity .15s, transform .2s var(--spring), background .15s, color .15s}
+  .subBtn svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none;transition:transform .3s var(--spring)}
+  .card:hover .subBtn,.subBtn:focus-visible,.card.aberta .subBtn{opacity:1;transform:none}
+  .subBtn:hover{background:var(--hov);color:var(--txt)}
+  .card.aberta .subBtn{color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+  .card.aberta .subBtn svg{transform:rotate(180deg)}
+  .card.aberta{align-items:flex-start}
+  .card.aberta .check{margin-top:1px}
+  .linhaT{display:flex;align-items:baseline;gap:8px;min-width:0}
+  .linhaT .t{flex:1;min-width:0}
+  .conta{flex:none;font-size:11px;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums;
+    background:color-mix(in srgb,var(--txt) 6%,transparent);border-radius:99px;padding:1px 7px}
+  .conta.completa{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+  .subsWrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s var(--ease)}
+  .card.aberta .subsWrap{grid-template-rows:1fr}
+  .subs{overflow:hidden;min-height:0}
+  .subs ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+  .subs li{display:flex;align-items:center;gap:8px;padding:4px 4px;border-radius:8px;font-size:12.5px;color:var(--sub)}
+  .subs li:hover{background:var(--hov-2)}
+  .subs li span{flex:1;min-width:0;word-break:break-word}
+  .subs li.ok span{text-decoration:line-through;color:var(--mut)}
+  .miniCheck{flex:none;width:15px;height:15px;border-radius:5px;border:1.5px solid color-mix(in srgb,var(--c) 60%,var(--mut));
+    background:transparent;padding:0;cursor:pointer;display:grid;place-items:center;transition:background .15s, border-color .15s, transform .2s var(--spring)}
+  .miniCheck svg{width:9px;height:9px;stroke:var(--bg);stroke-width:3;fill:none;opacity:0}
+  .miniCheck:hover{transform:scale(1.12)}
+  .subs li.ok .miniCheck{background:var(--ok);border-color:var(--ok)}
+  .subs li.ok .miniCheck svg{opacity:1}
+  .miniDel{flex:none;width:20px;height:20px;border:0;border-radius:6px;background:transparent;color:var(--mut);cursor:pointer;opacity:0;
+    display:grid;place-items:center;transition:opacity .15s, background .15s}
+  .miniDel svg{width:10px;height:10px;stroke:currentColor;stroke-width:2.2;fill:none}
+  .subs li:hover .miniDel,.miniDel:focus-visible{opacity:1}
+  .miniDel:hover{background:var(--hov);color:var(--txt)}
+  .subNovo{width:100%;margin:6px 0 2px;border:0;border-radius:9px;padding:7px 10px;font:inherit;font-size:12.5px;color:var(--txt);
+    background:color-mix(in srgb,var(--txt) 4%,transparent);box-shadow:inset 0 0 0 1px var(--aro);outline:none;user-select:text}
+  .subNovo::placeholder{color:var(--mut)}
+  .subNovo:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent), 0 0 0 3px color-mix(in srgb,var(--c) 12%,transparent)}
+
+  /* ---------- engrenagem: posição e tamanho do painel ---------- */
+  #configBtn{width:28px;height:26px;border:0;border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;
+    display:grid;place-items:center;transition:background .15s,color .15s}
+  #configBtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.6;fill:none;transition:transform .5s var(--spring)}
+  #configBtn:hover,#configBtn.on{background:var(--hov);color:var(--txt)}
+  #configBtn.on svg{transform:rotate(90deg)}
+  #config{position:absolute;left:14px;right:14px;bottom:calc(100% + 8px);border-radius:20px;padding:14px;z-index:3;
+    background:var(--vidro-forte);box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 24px 50px -16px var(--sombra-v);
+    -webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+    display:flex;flex-direction:column;gap:14px;opacity:0;transform:translateY(8px) scale(.98);transform-origin:bottom right;pointer-events:none;
+    transition:opacity .18s var(--ease), transform .22s var(--ease)}
+  #config.aberto{opacity:1;transform:none;pointer-events:auto}
+  .mapa{position:relative;height:110px;border-radius:12px;background:color-mix(in srgb,var(--txt) 4%,transparent);box-shadow:inset 0 0 0 1px var(--aro)}
+  .mon{position:absolute;border:0;border-radius:7px;cursor:pointer;padding:0;overflow:hidden;color:var(--sub);
+    background:var(--vidro-h);box-shadow:inset 0 0 0 1.5px var(--aro), 0 3px 8px -4px var(--sombra-v);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:box-shadow .2s, color .2s, transform .2s var(--spring)}
+  .mon:hover{transform:scale(1.03);color:var(--txt)}
+  .mon b{font-size:13px;font-weight:600}
+  .mon small{font-size:10px;color:var(--mut);font-variant-numeric:tabular-nums}
+  .mon.on{color:var(--txt);box-shadow:inset 0 0 0 2px var(--baixa), 0 6px 16px -6px color-mix(in srgb,var(--baixa) 60%,transparent)}
+  .mon .faixaP{position:absolute;top:0;bottom:0;width:18%;background:color-mix(in srgb,var(--baixa) 30%,transparent);opacity:0;transition:opacity .2s, left .3s var(--ease), right .3s var(--ease)}
+  .mon.on .faixaP{opacity:1}
+  .dica{font-size:11.5px;color:var(--mut)}
+  .larg{display:flex;align-items:center;gap:10px}
+  #largura{flex:1;accent-color:var(--baixa)}
+  #larguraV{min-width:52px;text-align:right;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="refracao" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="ruido"/>
+    <feGaussianBlur in="ruido" stdDeviation="2" result="suave"/>
+    <feDisplacementMap in="SourceGraphic" in2="suave" scale="18" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<header>
+  <div class="top"><h1>Demandas</h1><span class="date" id="data"></span></div>
+  <div class="stats"><div class="bar"><i id="prog"></i></div><span id="resumo"></span></div>
+</header>
+
+<main id="main"></main>
+
+<form id="form" autocomplete="off">
+  <div class="prios" id="prios">
+    <span class="ind"></span>
+    <button type="button" data-p="alta">Alta</button>
+    <button type="button" data-p="media" class="on">Média</button>
+    <button type="button" data-p="baixa">Baixa</button>
+  </div>
+  <div class="entrada">
+    <input id="novo" placeholder="Nova demanda…" maxlength="300" aria-label="Nova demanda">
+    <button id="add" type="submit" title="Adicionar (Enter)" aria-label="Adicionar"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg></button>
+  </div>
+  <div class="rodape">
+    <button id="verFeitas" type="button"></button>
+    <button id="temaBtn" type="button"><svg class="sol" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1" stroke-linecap="round"/></svg><svg class="lua" viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z" stroke-linejoin="round"/></svg></button>
+    <button id="configBtn" type="button" title="Posição e tamanho do painel" aria-label="Posição e tamanho do painel" aria-expanded="false" aria-controls="config"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7L3.4 3.4" stroke-linecap="round"/><circle cx="8" cy="8" r="4.6"/></svg></button>
+    <button id="vistaBtn" type="button" aria-expanded="false" aria-controls="vista"><span class="pt"></span><svg viewBox="0 0 16 16"><path d="M2 4h12M4 8h8M6 12h4" stroke-linecap="round"/></svg>Visualização</button>
+  </div>
+  <div id="config" role="dialog" aria-label="Posição e tamanho do painel">
+    <div class="grupo"><span class="rot">Monitor</span>
+      <div class="mapa" id="mapa"></div>
+      <span class="dica" id="dicaMon">Clique no monitor onde o painel deve ficar.</span>
+    </div>
+    <div class="grupo"><span class="rot">Lado da tela</span>
+      <div class="modos" id="lados">
+        <button type="button" data-l="esquerda"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.5 2.5v11"/></svg>Esquerda</button>
+        <button type="button" data-l="direita"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M10.5 2.5v11"/></svg>Direita</button>
+      </div>
+    </div>
+    <div class="grupo"><span class="rot">Largura do painel</span>
+      <div class="larg"><input type="range" id="largura" min="300" max="800" step="10" aria-label="Largura do painel"><output id="larguraV"></output></div>
+    </div>
+  </div>
+  <div id="vista" role="dialog" aria-label="Visualização da lista">
+    <div class="grupo"><span class="rot">Mostrar como</span>
+      <div class="modos">
+        <button type="button" data-m="grupos"><svg viewBox="0 0 16 16"><path d="M2 3h5M2 6h12M2 10h5M2 13h12" stroke-linecap="round"/></svg>Por prioridade</button>
+        <button type="button" data-m="unica"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12" stroke-linecap="round"/></svg>Lista única</button>
+      </div>
+    </div>
+    <div class="grupo"><span class="rot">Prioridades visíveis</span>
+      <div class="chips">
+        <button type="button" data-f="alta">Alta</button>
+        <button type="button" data-f="media">Média</button>
+        <button type="button" data-f="baixa">Baixa</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<div id="concluir"><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Solte aqui para concluir</div>
+
+<div id="veu"></div>
+<div id="feitas">
+  <div class="cab"><b>Concluídas hoje</b><button id="fecharFeitas" type="button" title="Fechar">×</button></div>
+  <ul id="listaFeitas"></ul>
+</div>
+
+<script>
+const PRIOS = [
+  {id:'alta',  nome:'Alta prioridade',  cor:'var(--alta)'},
+  {id:'media', nome:'Média prioridade', cor:'var(--media)'},
+  {id:'baixa', nome:'Baixa prioridade', cor:'var(--baixa)'}
+];
+const KEY = 'painel-demandas-v1';
+let tarefas = [];
+let semDadosLocais = false;
+try { const bruto = localStorage.getItem(KEY); semDadosLocais = bruto === null; tarefas = JSON.parse(bruto) || []; } catch(e) { tarefas = []; }
+let prioNova = 'media';
+const KEY_VISTA = 'painel-demandas-vista';
+let vista = {modo:'grupos', ocultas:[], tema:'claro'};
+try { vista = Object.assign(vista, JSON.parse(localStorage.getItem(KEY_VISTA)) || {}); } catch(e) {}
+const salvarVista = () => { try { localStorage.setItem(KEY_VISTA, JSON.stringify(vista)); } catch(e){} };
+let arrastandoId = null;
+let novaId = null;
+const semMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ICO_CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICO_SUB = '<svg viewBox="0 0 16 16"><path d="M6 4h8M6 8h8M6 12h8" stroke-linecap="round"/><path d="M2.5 4h.01M2.5 8h.01M2.5 12h.01" stroke-linecap="round" stroke-width="2.4"/></svg>';
+const ICO_MINI = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const abertas = new Set(); // demandas com a lista de micro demandas aberta
+const ICO_DEL = '<svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg>';
+
+let backupEspera;
+const salvar = () => {
+  try { localStorage.setItem(KEY, JSON.stringify(tarefas)); } catch(e){}
+  // cópia de segurança num arquivo do computador (o app guarda a atual + uma por dia)
+  clearTimeout(backupEspera);
+  backupEspera = setTimeout(() => { try { window.chrome.webview.postMessage('backup:demandas:' + JSON.stringify(tarefas)); } catch(e){} }, 2000);
+};
+const hoje = () => new Date().toDateString();
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const ativas = p => tarefas.filter(t => !t.feitaEm && t.prio === p).sort((a,b) => a.ordem - b.ordem);
+const feitasHoje = () => tarefas.filter(t => t.feitaEm && new Date(t.feitaEm).toDateString() === hoje())
+                                .sort((a,b) => b.feitaEm - a.feitaEm);
+const corDe = p => (PRIOS.find(x => x.id === p) || {cor:'var(--sub)'}).cor;
+
+// limpa concluídas com mais de 7 dias
+const limite = Date.now() - 7*864e5;
+tarefas = tarefas.filter(t => !t.feitaEm || t.feitaEm > limite); salvar();
+
+// animação FLIP: cada card desliza da posição antiga para a nova
+function posicoes(){
+  const m = new Map();
+  document.querySelectorAll('.card').forEach(c => m.set(c.dataset.id, c.getBoundingClientRect().top));
+  return m;
+}
+function animar(antes){
+  if (semMovimento) return;
+  document.querySelectorAll('.card').forEach(c => {
+    const id = c.dataset.id;
+    if (antes.has(id)){
+      const dy = antes.get(id) - c.getBoundingClientRect().top;
+      if (Math.abs(dy) > 1) c.animate([{transform:`translateY(${dy}px)`},{transform:'none'}], {duration:320, easing:'cubic-bezier(.2,.8,.2,1)'});
+    } else if (antes.size || id === novaId){
+      c.animate([{opacity:0, transform:'translateY(10px) scale(.97)'},{opacity:1, transform:'none'}], {duration:360, easing:'cubic-bezier(.2,.8,.2,1)'});
+    }
+  });
+  novaId = null;
+}
+
+function render(){
+  const antes = posicoes();
+  document.getElementById('data').textContent =
+    new Date().toLocaleDateString('pt-BR',{weekday:'long', day:'numeric', month:'long'});
+
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  let n = 0, primeira = true;
+  const visiveis = PRIOS.filter(p => !vista.ocultas.includes(p.id));
+  const blocos = vista.modo === 'unica'
+    ? [{id:'todas', lista: visiveis.flatMap(p => ativas(p.id))}]
+    : visiveis.map(p => ({id:p.id, p, lista: ativas(p.id)}));
+  if (!visiveis.length) main.innerHTML = '<div class="vazio" style="margin-top:8px">Todas as prioridades estão ocultas. Ative alguma em Visualização.</div>';
+  for (const {id, p, lista} of blocos){
+    const sec = document.createElement('section');
+    if (p){ sec.style.setProperty('--c', p.cor); sec.innerHTML = `<h2>${p.nome}<span>${lista.length || ''}</span></h2>`; }
+    const box = document.createElement('div');
+    box.className = 'lista'; box.dataset.prio = id;
+    if (!lista.length) box.innerHTML = p ? '<div class="vazio">Arraste uma demanda para cá</div>' : '<div class="vazio">Nenhuma demanda pendente</div>';
+    for (const t of lista){
+      n++;
+      const c = document.createElement('div');
+      c.className = 'card' + (primeira ? ' agora' : '') + (abertas.has(t.id) ? ' aberta' : '');
+      c.draggable = true; c.dataset.id = t.id;
+      c.innerHTML = `<button class="check" type="button" title="Concluir" aria-label="Concluir">${ICO_CHECK}</button>
+        <div class="corpo"><div class="linhaT"><span class="t"></span><span class="conta" hidden></span></div>
+          <div class="subsWrap"><div class="subs"><ul></ul><input class="subNovo" maxlength="200" placeholder="Nova micro demanda… (Enter)" aria-label="Nova micro demanda"></div></div></div>
+        <div class="lado"><button class="subBtn" type="button" title="Micro demandas" aria-label="Micro demandas">${ICO_SUB}</button>
+          <div class="ladoN"><span class="n">${n}</span><button class="del" type="button" title="Excluir" aria-label="Excluir">${ICO_DEL}</button></div></div>`;
+      c.querySelector('.t').textContent = t.texto;
+      desenharSubs(c, t);
+      primeira = false;
+      ligarCard(c, t);
+      box.append(c);
+    }
+    ligarLista(box);
+    sec.append(box);
+    main.append(sec);
+  }
+
+  const total = tarefas.filter(t => !t.feitaEm).length, f = feitasHoje().length;
+  document.getElementById('resumo').textContent = f + total ? `${f} de ${f + total} feitas` : 'Tudo em dia';
+  document.getElementById('prog').style.width = (f+total ? f/(f+total)*100 : 0) + '%';
+  document.getElementById('verFeitas').textContent = f ? `Ver concluídas hoje (${f})` : '';
+  atualizarVista();
+  renderFeitas();
+  animar(antes);
+}
+
+function abrirFeitas(sim){
+  document.getElementById('feitas').classList.toggle('aberto', sim);
+  document.getElementById('veu').classList.toggle('aberto', sim);
+}
+
+function renderFeitas(){
+  const ul = document.getElementById('listaFeitas'); ul.innerHTML = '';
+  for (const t of feitasHoje()){
+    const li = document.createElement('li');
+    const hora = new Date(t.feitaEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    li.innerHTML = `<s></s><small>${hora}</small><button type="button">Desfazer</button>`;
+    li.querySelector('s').textContent = t.texto;
+    li.querySelector('button').onclick = () => { t.feitaEm = null; t.ordem = -Date.now(); novaId = t.id; salvar(); render(); };
+    ul.append(li);
+  }
+  if (!ul.children.length) abrirFeitas(false);
+}
+
+// marca, mostra o check, depois recolhe o card
+function concluir(id, el, comCheck){
+  const t = tarefas.find(x => x.id === id); if (!t || t.feitaEm) return;
+  t.feitaEm = Date.now(); salvar();
+  if (!el || semMovimento){ render(); return; }
+  el.classList.add('feita'); el.draggable = false;
+  const recolher = () => {
+    const h = el.offsetHeight;
+    el.animate([{height:h+'px', opacity:1}, {height:'0px', opacity:0, paddingTop:'0px', paddingBottom:'0px', marginBottom:'-6px'}],
+               {duration:260, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'}).onfinish = render;
+  };
+  comCheck ? setTimeout(recolher, 420) : recolher();
+}
+
+// ---------- micro demandas ----------
+function desenharSubs(c, t){
+  const subs = t.sub || [];
+  const conta = c.querySelector('.conta');
+  const feitas = subs.filter(s => s.ok).length;
+  conta.hidden = !subs.length;
+  conta.textContent = `${feitas}/${subs.length}`;
+  conta.classList.toggle('completa', subs.length > 0 && feitas === subs.length);
+  const ul = c.querySelector('.subs ul'); ul.innerHTML = '';
+  for (const s of subs){
+    const li = document.createElement('li'); li.className = s.ok ? 'ok' : '';
+    li.innerHTML = `<button class="miniCheck" type="button" aria-label="Concluir micro demanda">${ICO_MINI}</button><span></span><button class="miniDel" type="button" aria-label="Excluir micro demanda">${ICO_DEL}</button>`;
+    li.querySelector('span').textContent = s.texto;
+    li.querySelector('.miniCheck').onclick = () => { s.ok = !s.ok; salvar(); desenharSubs(c, t); };
+    li.querySelector('.miniDel').onclick = () => { t.sub = subs.filter(x => x !== s); salvar(); desenharSubs(c, t); };
+    ul.append(li);
+  }
+}
+
+function ligarCard(c, t){
+  // micro demandas: abrir/fechar, adicionar
+  const subBtn = c.querySelector('.subBtn'), subNovo = c.querySelector('.subNovo');
+  subBtn.onclick = () => {
+    const abrir = !abertas.has(t.id);
+    abrir ? abertas.add(t.id) : abertas.delete(t.id);
+    c.classList.toggle('aberta', abrir);
+    if (abrir) setTimeout(() => subNovo.focus(), 120);
+  };
+  subNovo.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      const v = subNovo.value.trim(); if (!v) return;
+      (t.sub = t.sub || []).push({id: uid(), texto: v, ok: false});
+      subNovo.value = ''; salvar(); desenharSubs(c, t);
+    }
+    if (e.key === 'Escape'){ subNovo.blur(); }
+  });
+  // dentro da lista não arrasta o card (deixa digitar e selecionar)
+  c.querySelector('.subs').addEventListener('pointerdown', () => { c.draggable = false; });
+  c.addEventListener('pointerup', () => { if (c.querySelector('.t').contentEditable !== 'true') c.draggable = true; });
+
+  c.addEventListener('pointermove', e => {
+    const r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+  c.style.setProperty('--c', corDe(t.prio));
+  c.addEventListener('dragstart', e => {
+    arrastandoId = t.id; e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', t.id);
+    setTimeout(() => { c.classList.add('arrastando'); document.body.classList.add('drag'); });
+  });
+  c.addEventListener('dragend', () => {
+    arrastandoId = null; c.classList.remove('arrastando'); document.body.classList.remove('drag');
+    document.querySelectorAll('.marcador').forEach(m => m.remove());
+    document.querySelectorAll('.alvo').forEach(m => m.classList.remove('alvo'));
+  });
+  c.querySelector('.check').onclick = () => concluir(t.id, c, true);
+
+  // excluir em dois cliques, sem janela de confirmação
+  const del = c.querySelector('.del');
+  let espera;
+  del.onclick = () => {
+    if (del.classList.contains('confirmar')){
+      clearTimeout(espera);
+      tarefas = tarefas.filter(x => x.id !== t.id); salvar();
+      if (semMovimento) return render();
+      c.animate([{opacity:1, transform:'none'},{opacity:0, transform:'translateX(-12px)'}], {duration:180, fill:'forwards'}).onfinish = render;
+      return;
+    }
+    del.classList.add('confirmar'); del.textContent = 'Excluir?';
+    espera = setTimeout(() => { del.classList.remove('confirmar'); del.innerHTML = ICO_DEL; }, 2500);
+  };
+
+  const txt = c.querySelector('.t');
+  txt.addEventListener('dblclick', () => {
+    txt.contentEditable = true; c.draggable = false; txt.focus();
+    document.getSelection().selectAllChildren(txt);
+  });
+  const fim = salvarEdicao => {
+    if (txt.contentEditable !== 'true') return;
+    const v = txt.textContent.trim();
+    if (salvarEdicao && v) { t.texto = v; salvar(); }
+    render();
+  };
+  txt.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); fim(true); }
+    if (e.key === 'Escape'){ fim(false); }
+  });
+  txt.addEventListener('blur', () => fim(true));
+}
+
+function posicao(box, y){
+  const cards = [...box.querySelectorAll('.card:not(.arrastando)')];
+  for (let i = 0; i < cards.length; i++){
+    const r = cards[i].getBoundingClientRect();
+    if (y < r.top + r.height/2) return {i, antes: cards[i]};
+  }
+  return {i: cards.length, antes: null};
+}
+
+function ligarLista(box){
+  box.style.setProperty('--c', corDe(box.dataset.prio));
+  box.addEventListener('dragover', e => {
+    if (!arrastandoId) return;
+    e.preventDefault();
+    document.querySelectorAll('.lista.alvo').forEach(b => b !== box && b.classList.remove('alvo'));
+    box.classList.add('alvo');
+    const {antes} = posicao(box, e.clientY);
+    const atual = box.querySelector('.marcador');
+    if (atual && atual.nextElementSibling === antes) return; // evita piscar
+    document.querySelectorAll('.marcador').forEach(m => m.remove());
+    const m = document.createElement('div'); m.className = 'marcador';
+    antes ? box.insertBefore(m, antes) : box.append(m);
+  });
+  box.addEventListener('dragleave', e => {
+    if (!box.contains(e.relatedTarget)) { box.classList.remove('alvo'); box.querySelector('.marcador')?.remove(); }
+  });
+  box.addEventListener('drop', e => {
+    e.preventDefault();
+    const id = arrastandoId; if (!id) return;
+    const t = tarefas.find(x => x.id === id);
+    const {i} = posicao(box, e.clientY);
+    if (box.dataset.prio === 'todas'){
+      const lista = [...box.querySelectorAll('.card')].map(c => tarefas.find(y => y.id === c.dataset.id)).filter(x => x !== t);
+      lista.splice(i, 0, t);
+      const viz = lista[i - 1] || lista[i + 1];
+      if (viz) t.prio = viz.prio;
+      // mantém a lista ordenada por prioridade e regrava a ordem de cada grupo
+      const rank = p => PRIOS.findIndex(x => x.id === p);
+      lista.map((x, k) => ({x, k})).sort((a, b) => rank(a.x.prio) - rank(b.x.prio) || a.k - b.k)
+           .forEach(({x}, k) => x.ordem = k);
+    } else {
+      const ids = ativas(box.dataset.prio).map(x => x.id).filter(x => x !== id);
+      ids.splice(i, 0, id);
+      t.prio = box.dataset.prio;
+      ids.forEach((x, k) => tarefas.find(y => y.id === x).ordem = k);
+    }
+    salvar(); render();
+  });
+}
+
+const zona = document.getElementById('concluir');
+zona.addEventListener('dragover', e => { if (arrastandoId){ e.preventDefault(); zona.classList.add('alvo'); } });
+zona.addEventListener('dragleave', () => zona.classList.remove('alvo'));
+zona.addEventListener('drop', e => {
+  e.preventDefault(); zona.classList.remove('alvo');
+  const id = arrastandoId;
+  const el = document.querySelector(`.card[data-id="${id}"]`);
+  if (el) el.classList.remove('arrastando');
+  concluir(id, el, false);
+});
+
+// seletor de prioridade com indicador deslizante
+const prios = document.getElementById('prios');
+function escolherPrio(p){
+  prioNova = p;
+  const i = PRIOS.findIndex(x => x.id === p);
+  prios.style.setProperty('--i', i);
+  document.body.style.setProperty('--pc', PRIOS[i].cor);
+  prios.querySelectorAll('button').forEach(x => {
+    x.classList.toggle('on', x.dataset.p === p);
+    x.style.setProperty('--bc', corDe(x.dataset.p));
+  });
+}
+prios.querySelectorAll('button').forEach(b => b.onclick = () => { escolherPrio(b.dataset.p); document.getElementById('novo').focus(); });
+escolherPrio('media');
+
+document.getElementById('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const inp = document.getElementById('novo'), v = inp.value.trim();
+  if (!v) { inp.focus(); return; }
+  const max = Math.max(-1, ...ativas(prioNova).map(t => t.ordem));
+  const t = {id: uid(), texto: v, prio: prioNova, ordem: max + 1, criadaEm: Date.now(), feitaEm: null};
+  tarefas.push(t); novaId = t.id;
+  if (vista.ocultas.includes(prioNova)){ vista.ocultas = vista.ocultas.filter(x => x !== prioNova); salvarVista(); }
+  inp.value = ''; salvar(); render(); inp.focus();
+});
+
+const vistaEl = document.getElementById('vista'), vistaBtn = document.getElementById('vistaBtn');
+function abrirVista(sim){
+  vistaEl.classList.toggle('aberto', sim); vistaBtn.classList.toggle('on', sim);
+  vistaBtn.setAttribute('aria-expanded', sim);
+}
+function atualizarVista(){
+  vistaEl.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', b.dataset.m === vista.modo));
+  document.documentElement.dataset.tema = vista.tema;
+  try { window.chrome.webview.postMessage('tema:' + vista.tema); } catch(e) {} // fundo da janela combina com o tema
+  temaBtn.title = temaBtn.ariaLabel = vista.tema === 'claro' ? 'Mudar para tema escuro' : 'Mudar para tema claro';
+  vistaEl.querySelectorAll('[data-f]').forEach(b => {
+    b.style.setProperty('--fc', corDe(b.dataset.f));
+    b.classList.toggle('on', !vista.ocultas.includes(b.dataset.f));
+  });
+  vistaBtn.classList.toggle('filtrado', vista.modo !== 'grupos' || vista.ocultas.length > 0);
+}
+vistaBtn.onclick = e => { e.stopPropagation(); const abrir = !vistaEl.classList.contains('aberto'); abrirVista(abrir); if (abrir) abrirConfig(false); };
+vistaEl.addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click', () => abrirVista(false));
+vistaEl.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { vista.modo = b.dataset.m; salvarVista(); render(); });
+const temaBtn = document.getElementById('temaBtn');
+temaBtn.onclick = () => { vista.tema = vista.tema === 'claro' ? 'escuro' : 'claro'; salvarVista(); atualizarVista(); };
+vistaEl.querySelectorAll('[data-f]').forEach(b => b.onclick = () => {
+  const p = b.dataset.f;
+  vista.ocultas = vista.ocultas.includes(p) ? vista.ocultas.filter(x => x !== p) : [...vista.ocultas, p];
+  salvarVista(); render();
+});
+
+// ---------- engrenagem: monitor, lado e largura (a janela é controlada pelo abrir-painel.ps1) ----------
+const configEl = document.getElementById('config'), configBtn = document.getElementById('configBtn');
+const hostOk = !!(window.chrome && window.chrome.webview);
+// fora do app (prévia no navegador) mostra monitores de exemplo
+let telas = hostOk ? null : {monitores:[{d:'A',x:-2560,y:0,w:2560,h:1080,p:false},{d:'B',x:0,y:0,w:1920,h:1080,p:true}], monitor:'A', lado:'esquerda', largura:440};
+function abrirConfig(sim){
+  configEl.classList.toggle('aberto', sim); configBtn.classList.toggle('on', sim);
+  configBtn.setAttribute('aria-expanded', sim);
+  if (sim){ abrirVista(false); if (hostOk) window.chrome.webview.postMessage('config?'); desenharConfig(); }
+}
+function enviarConfig(){
+  if (hostOk) window.chrome.webview.postMessage(`config:${telas.monitor}|${telas.lado}|${telas.largura}`);
+  desenharConfig();
+}
+function desenharConfig(){
+  const mapa = document.getElementById('mapa');
+  if (!telas){ mapa.innerHTML = ''; return; }
+  const ms = telas.monitores;
+  const x0 = Math.min(...ms.map(m => m.x)), y0 = Math.min(...ms.map(m => m.y));
+  const W = Math.max(...ms.map(m => m.x + m.w)) - x0, H = Math.max(...ms.map(m => m.y + m.h)) - y0;
+  const caixaW = mapa.clientWidth - 24 || 340, caixaH = 110 - 24;
+  const k = Math.min(caixaW / W, caixaH / H);
+  const offX = (mapa.clientWidth - W * k) / 2, offY = (110 - H * k) / 2;
+  mapa.innerHTML = '';
+  ms.forEach((m, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mon' + (m.d === telas.monitor ? ' on' : '');
+    Object.assign(b.style, {left: offX + (m.x - x0) * k + 2 + 'px', top: offY + (m.y - y0) * k + 2 + 'px',
+                            width: m.w * k - 4 + 'px', height: m.h * k - 4 + 'px'});
+    const pct = Math.min(60, telas.largura / m.w * 100);
+    b.innerHTML = `<span class="faixaP" style="${telas.lado === 'direita' ? 'right:0' : 'left:0'};width:${pct}%"></span><b>${i + 1}</b><small>${m.w}×${m.h}${m.p ? ' · principal' : ''}</small>`;
+    b.setAttribute('aria-label', `Monitor ${i + 1}, ${m.w} por ${m.h}${m.p ? ', principal' : ''}`);
+    b.onclick = () => { telas.monitor = m.d; enviarConfig(); };
+    mapa.append(b);
+  });
+  document.querySelectorAll('#lados [data-l]').forEach(b => b.classList.toggle('on', b.dataset.l === telas.lado));
+  const r = document.getElementById('largura');
+  if (document.activeElement !== r) r.value = telas.largura;
+  document.getElementById('larguraV').textContent = r.value + ' px';
+  document.getElementById('dicaMon').textContent = ms.length > 1 ? 'Clique no monitor onde o painel deve ficar.' : 'Só um monitor encontrado.';
+}
+if (hostOk) window.chrome.webview.addEventListener('message', e => {
+  try { const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; if (d && d.monitores){ telas = d; desenharConfig(); } } catch(err) {}
+});
+configBtn.onclick = e => { e.stopPropagation(); abrirConfig(!configEl.classList.contains('aberto')); };
+configEl.addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click', () => abrirConfig(false));
+document.querySelectorAll('#lados [data-l]').forEach(b => b.onclick = () => { if (!telas) return; telas.lado = b.dataset.l; enviarConfig(); });
+const larguraEl = document.getElementById('largura');
+larguraEl.addEventListener('input', () => { document.getElementById('larguraV').textContent = larguraEl.value + ' px'; });
+// aplica só ao soltar: os outros programas não ficam se redimensionando durante o arraste
+larguraEl.addEventListener('change', () => { if (!telas) return; telas.largura = +larguraEl.value; enviarConfig(); });
+
+document.getElementById('verFeitas').onclick = () => abrirFeitas(true);
+document.getElementById('fecharFeitas').onclick = () => abrirFeitas(false);
+document.getElementById('veu').onclick = () => abrirFeitas(false);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ abrirFeitas(false); abrirVista(false); abrirConfig(false); }
+  if (e.key.toLowerCase() === 'n' && !e.ctrlKey && document.activeElement === document.body){
+    e.preventDefault(); document.getElementById('novo').focus();
+  }
+});
+
+// anima a entrada sempre que o painel volta a aparecer
+function entrar(){
+  if (semMovimento) return;
+  document.body.classList.remove('entrada'); void document.body.offsetWidth;
+  document.body.classList.add('entrada');
+  setTimeout(() => document.body.classList.remove('entrada'), 1100);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') entrar(); });
+// o abrir-painel.ps1 chama entrar() quando o painel volta (Win+Espaço)
+entrar();
+
+// recuperação: se este computador não tem nenhuma demanda salva, pede ao app o último backup
+if (window.chrome && window.chrome.webview) {
+  window.chrome.webview.addEventListener('message', e => {
+    let d; try { d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch(err) { return; }
+    if (d && Array.isArray(d.restaurar) && semDadosLocais && !tarefas.length) {
+      tarefas = d.restaurar; semDadosLocais = false; salvar(); render();
+    }
+  });
+  if (semDadosLocais) window.chrome.webview.postMessage('restaurar?');
+  else salvar(); // garante um backup logo ao abrir
+}
+
+// atualiza a data/contagem quando vira o dia
+let diaAtual = hoje();
+setInterval(() => { if (hoje() !== diaAtual){ diaAtual = hoje(); render(); } }, 60000);
+
+render();
+</script>
+</body>
+</html>
