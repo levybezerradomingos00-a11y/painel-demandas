@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quadro de RT</title>
 <style>
-  /* layout: cabeçalho fino (status, busca de cliente, ações) + quadro de colunas por etapa, rolagem horizontal */
+  /* layout: cabeçalho com abas (Quadro, Relatórios, Arquivados) + lista de clientes recolhível + colunas por etapa */
   :root{
     --bg:#0e1116; --txt:#e9edf3; --sub:#a3adbb; --mut:#6c7787;
     --agu:#ffc94a; --orc:#5cb8ff; --fech:#38d39f; --alerta:#ffb547; --erro:#ff6b6b;
@@ -46,8 +46,9 @@
     -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
   .logo svg{width:20px;height:20px;stroke:currentColor;stroke-width:1.5;fill:none}
   .logo .p{fill:currentColor;stroke:none;opacity:.85}
-  .sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--sub);padding:4px 10px;border-radius:99px;
+  .sync{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;cursor:default;
     background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro)}
+  .pendente{font-size:12.5px;color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:-6px}
   .sync i{width:7px;height:7px;border-radius:50%;background:var(--mut)}
   .sync[data-s="ok"] i{background:var(--fech);box-shadow:0 0 0 3px color-mix(in srgb,var(--fech) 20%,transparent)}
   .sync[data-s="enviando"] i{background:var(--alerta)}
@@ -76,7 +77,7 @@
   .icone:active{transform:scale(.92)}
 
   /* ---------- quadro ---------- */
-  main{flex:1;min-height:0;display:flex;gap:12px;padding:4px 20px 20px;overflow-x:auto;overflow-y:hidden;
+  main{flex:1;min-width:0;min-height:0;display:flex;gap:12px;padding:4px 20px 20px;overflow-x:auto;overflow-y:hidden;
     scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
   .col{flex:1 0 210px;max-width:320px;display:flex;flex-direction:column;min-height:0;border-radius:18px;background:var(--coluna);
     box-shadow:inset 0 0 0 1px var(--aro);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:box-shadow .2s, background .2s}
@@ -86,7 +87,17 @@
   .col.alvo{background:color-mix(in srgb,var(--orc) 8%,var(--coluna));box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--orc) 45%,transparent)}
   .col h2{margin:0;padding:13px 14px 9px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--sub);
     display:flex;align-items:center;gap:8px}
-  .col h2 span{margin-left:auto;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums}
+  .icoEtapa{flex:none;width:26px;height:26px;border-radius:9px;display:grid;place-items:center;color:var(--orc);
+    background:linear-gradient(160deg,var(--vidro-h),color-mix(in srgb,var(--orc) 12%,var(--vidro)));
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 3px 8px -5px color-mix(in srgb,var(--orc) 60%,transparent);
+    transition:transform .3s var(--spring)}
+  .icoEtapa svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.35;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .col:hover .icoEtapa,.col.alvo .icoEtapa{transform:scale(1.08) rotate(-4deg)}
+  .col h2{padding-top:11px;padding-bottom:8px}
+  .comIco{display:inline-flex;align-items:center;gap:8px}
+  .comIco .icoEtapa{width:22px;height:22px;border-radius:7px}
+  .comIco .icoEtapa svg{width:13px;height:13px}
+  .col h2 > span:last-child{margin-left:auto;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums}
   .cards{flex:1;min-height:40px;overflow-y:auto;padding:2px 10px 6px;display:flex;flex-direction:column;gap:7px;scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
   .vazio{font-size:12px;color:var(--mut);text-align:center;padding:14px 6px;border:1px dashed var(--aro);border-radius:12px}
 
@@ -142,141 +153,655 @@
   #config p{margin:0;font-size:12px;color:var(--sub);line-height:1.5}
 
   /* entrada: o quadro "sai" do painel de demandas */
-  body.preparando header,body.preparando main{opacity:0}
+  body.preparando header,body.preparando .vista{opacity:0}
   body.entrada header{animation:surge .45s var(--ease) both}
   body.entrada .col{animation:surge .5s var(--ease) both;animation-delay:calc(var(--i) * 25ms + 60ms)}
   @keyframes surge{from{opacity:0;transform:translateX(-24px) scale(.97);filter:blur(8px)}}
-  body.saindo header,body.saindo main{opacity:0;transition:opacity .12s}
+  body.saindo header,body.saindo .vista{opacity:0;transition:opacity .12s}
+
+  /* ================= v1.2: abas, lista de clientes, valor, não fechou, relatórios, arquivados ================= */
+  :root{ --nao:#ff6b6b; }
+  :root[data-tema="claro"]{ --nao:#d83c41; }
+
+  /* abas do cabeçalho */
+  .abas{display:flex;gap:2px;padding:3px;border-radius:13px;background:color-mix(in srgb,var(--txt) 5%,transparent);box-shadow:inset 0 0 0 1px var(--aro)}
+  .abas button{border:0;background:transparent;color:var(--sub);cursor:pointer;padding:6px 13px;border-radius:10px;font-size:12.5px;font-weight:600;
+    display:flex;align-items:center;gap:7px;transition:background .2s,color .2s}
+  .abas button:hover{color:var(--txt)}
+  .abas button.on{color:var(--txt);background:var(--vidro-h);box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 3px 10px -5px var(--sombra-v)}
+  /* abas: só a selecionada mostra o nome; as outras, só o ícone */
+  .abas svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.6;fill:none;flex:none}
+  .abas button{gap:0;padding:6px 10px}
+  .abas .rotAba{max-width:0;overflow:hidden;white-space:nowrap;opacity:0;transition:max-width .3s var(--ease), opacity .2s, margin .3s var(--ease)}
+  .abas button.on .rotAba{max-width:120px;opacity:1;margin-left:7px}
+  .abas b{margin-left:6px}
+  .icoArq svg{width:13px;height:13px;stroke:currentColor;stroke-width:1.7;fill:none;vertical-align:-2px}
+  .abas b{font-size:10.5px;font-weight:700;color:var(--mut);background:color-mix(in srgb,var(--txt) 7%,transparent);padding:0 6px;border-radius:99px}
+  .vista{flex:1;min-height:0;display:none}
+  .vista.on{display:flex}
+
+  /* ---------- lista mãe de clientes (lateral) ---------- */
+  #vQuadro{gap:0}
+  .lateral{position:relative;flex:none;width:250px;margin:4px 0 20px 20px;border-radius:18px;display:flex;flex-direction:column;min-height:0;
+    background:var(--coluna);box-shadow:inset 0 0 0 1px var(--aro);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+    transition:width .32s var(--ease), margin .32s var(--ease), opacity .25s}
+  .lateral.fechada{width:0;margin-right:-6px;opacity:0;pointer-events:none}
+  .lateral .topoL{padding:13px 14px 8px;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--sub);white-space:nowrap}
+  .lateral .topoL span{margin-left:auto;color:var(--mut)}
+  .novoCli{margin:0 10px 8px;border:0;border-radius:11px;padding:8px 11px;outline:none;font-size:13px;
+    background:color-mix(in srgb,var(--txt) 4%,transparent);box-shadow:inset 0 0 0 1px var(--aro)}
+  .novoCli::placeholder{color:var(--mut)}
+  .novoCli:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orc) 55%,transparent), 0 0 0 3px color-mix(in srgb,var(--orc) 12%,transparent)}
+  .listaCli{flex:1;min-height:0;overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
+  .cli{position:relative;display:flex;flex-direction:column;gap:2px;padding:8px 10px 8px 26px;border-radius:12px;cursor:grab;
+    background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro);transition:background .15s, box-shadow .2s, transform .15s var(--ease)}
+  .cli::before{content:"";position:absolute;left:10px;top:50%;width:6px;height:14px;margin-top:-7px;opacity:.45;
+    background:radial-gradient(circle,var(--mut) 1px,transparent 1.4px) 0 0/3px 4px}
+  .cli:hover{background:var(--vidro-h);transform:translateX(2px)}
+  .cli.on{box-shadow:inset 0 0 0 2px var(--orc)}
+  .cli .cNome{font-weight:600;font-size:12.8px;word-break:break-word;outline:none;padding-right:24px}
+  .cli .cNome[contenteditable=true]{cursor:text;user-select:text;box-shadow:0 0 0 1px var(--aro);border-radius:6px;padding:1px 5px;margin:-1px -5px}
+  .cli .cResumo{font-size:11px;color:var(--mut);display:flex;gap:8px;flex-wrap:wrap}
+  .cli .cResumo i{font-style:normal;display:inline-flex;align-items:center;gap:4px}
+  .cli .cResumo i::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+  .cli .arqCli{position:absolute;top:6px;right:6px;width:22px;height:22px;border:0;border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;opacity:0;
+    display:grid;place-items:center;transition:opacity .15s,background .15s}
+  .cli:hover .arqCli,.arqCli:focus-visible{opacity:1}
+  .arqCli:hover{background:var(--hov);color:var(--txt)}
+  .arqCli svg,.arq svg{width:12px;height:12px;stroke:currentColor;stroke-width:1.8;fill:none}
+  .arqCli.confirmar{opacity:1;width:auto;padding:0 7px;font-size:10.5px;font-weight:600;color:var(--alerta);background:color-mix(in srgb,var(--alerta) 14%,transparent)}
+  .setaLado{position:absolute;z-index:2;top:50%;left:262px;width:18px;height:46px;margin-top:-23px;border:0;border-radius:0 10px 10px 0;cursor:pointer;
+    color:var(--mut);background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro);display:grid;place-items:center;opacity:.55;
+    transition:left .32s var(--ease), opacity .2s, color .2s}
+  .setaLado:hover{opacity:1;color:var(--txt)}
+  .setaLado svg{width:11px;height:11px;stroke:currentColor;stroke-width:2.2;fill:none;transition:transform .32s var(--ease)}
+  .lateral.fechada + .setaLado{left:8px}
+  .lateral.fechada + .setaLado svg{transform:rotate(180deg)}
+  #vQuadro{position:relative}
+
+  /* ---------- cartão: valor, não fechou, arquivar ---------- */
+  .marca[data-m="nao"].on{color:#fff;background:var(--nao);box-shadow:none}
+  .card.nao{background:linear-gradient(160deg,color-mix(in srgb,var(--nao) 9%,var(--vidro-h)),var(--vidro));
+    box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1.5px color-mix(in srgb,var(--nao) 45%,transparent), 0 6px 16px -8px color-mix(in srgb,var(--nao) 40%,transparent)}
+  .rodapeCard{align-items:center;justify-content:space-between;gap:8px}
+  .rodapeCard .quem{display:flex;gap:5px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .valor{flex:none;border:0;cursor:pointer;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--txt);padding:2px 8px;border-radius:8px;
+    background:color-mix(in srgb,var(--txt) 5%,transparent);box-shadow:inset 0 0 0 1px var(--aro);transition:background .15s}
+  .valor.vazio{color:var(--mut);font-weight:500}
+  .valor:hover{background:var(--vidro-h)}
+  .valorCampo{width:120px;border:0;border-radius:8px;padding:3px 8px;outline:none;font-size:12px;font-weight:700;text-align:right;
+    background:var(--vidro-h);box-shadow:inset 0 0 0 1px var(--orc)}
+  .acoesCard{position:absolute;top:7px;right:7px;display:flex;gap:2px}
+  .acoesCard .del{position:static}
+  .arq{width:22px;height:22px;border:0;border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;opacity:0;display:grid;place-items:center;transition:opacity .15s,background .15s}
+  .card:hover .arq,.arq:focus-visible{opacity:1}
+  .arq:hover{background:var(--hov);color:var(--txt)}
+  .nome{padding-right:50px}
+  .motivo{margin-top:9px;padding:10px;border-radius:12px;display:flex;flex-direction:column;gap:6px;
+    background:color-mix(in srgb,var(--nao) 6%,var(--vidro-h));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nao) 30%,var(--aro));
+    animation:abre .25s var(--ease)}
+  @keyframes abre{from{opacity:0;transform:translateY(-4px)}}
+  .motivo .tit{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--sub)}
+  .motivo label{display:flex;align-items:center;gap:7px;font-size:12.3px;cursor:pointer}
+  .motivo input[type=radio]{accent-color:var(--nao);margin:0}
+  .motivo .txt{border:0;border-radius:8px;padding:6px 9px;font-size:12px;outline:none;background:color-mix(in srgb,var(--txt) 5%,transparent);box-shadow:inset 0 0 0 1px var(--aro)}
+  .motivo .bts{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .bt{border:0;cursor:pointer;padding:5px 10px;border-radius:9px;font-size:11.5px;font-weight:600;color:var(--sub);
+    background:color-mix(in srgb,var(--txt) 6%,transparent);box-shadow:inset 0 0 0 1px var(--aro);transition:background .15s,color .15s}
+  .bt:hover{color:var(--txt);background:var(--vidro-h)}
+  .bt.forte{color:#fff;background:var(--orc);box-shadow:none}
+  .bt.perigo{color:var(--nao)}
+  .card .motivoTxt{margin-top:6px;font-size:11.5px;color:var(--nao);display:flex;align-items:center;gap:6px;cursor:pointer}
+
+  /* ---------- relatórios ---------- */
+  #vRel{flex-direction:column;overflow-y:auto;padding:4px 20px 24px;gap:14px;scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
+  .filtros{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .seg{display:flex;gap:2px;padding:3px;border-radius:12px;background:color-mix(in srgb,var(--txt) 5%,transparent);box-shadow:inset 0 0 0 1px var(--aro)}
+  .seg button{border:0;background:transparent;color:var(--sub);cursor:pointer;padding:5px 12px;border-radius:9px;font-size:12px;font-weight:600}
+  .seg button.on{color:var(--txt);background:var(--vidro-h);box-shadow:inset 0 0 0 1px var(--aro)}
+  .periodo{display:flex;align-items:center;gap:4px}
+  .periodo strong{min-width:150px;text-align:center;font:600 15px var(--font-d)}
+  .periodo button{width:30px;height:30px;border:0;border-radius:9px;cursor:pointer;color:var(--sub);background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro);font-size:15px}
+  .periodo button:hover{color:var(--txt)}
+  .periodo button:disabled{opacity:.35;cursor:default}
+  .filtroAtivo{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);padding:4px 6px 4px 11px;border-radius:99px;background:color-mix(in srgb,var(--orc) 12%,transparent)}
+  .filtroAtivo button{border:0;background:transparent;cursor:pointer;color:var(--sub);font-size:14px;line-height:1;padding:0 4px}
+  .painelR{border-radius:18px;padding:16px 18px;background:var(--coluna);box-shadow:inset 0 0 0 1px var(--aro);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);min-width:0}
+  .blocoTopo{width:100%;border:0;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;color:inherit;text-align:left}
+  .blocoTopo svg{width:13px;height:13px;stroke:var(--mut);stroke-width:1.8;fill:none;flex:none;transition:transform .25s var(--ease)}
+  .blocoTopo:hover svg{stroke:var(--txt)}
+  .painelR.fechado .blocoTopo svg{transform:rotate(-90deg)}
+  .painelR.fechado .blocoCorpo{display:none}
+  .painelR.fechado h3{margin-bottom:0}
+  .intervalo{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--sub)}
+  .intervalo label{display:flex;align-items:center;gap:6px}
+  .intervalo input{border:0;border-radius:9px;padding:5px 8px;font-size:12.5px;background:var(--vidro);box-shadow:inset 0 0 0 1px var(--aro);color:var(--txt)}
+  .painelR h3{margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--sub);display:flex;gap:8px;align-items:baseline}
+  .painelR h3 small{font-weight:500;letter-spacing:0;text-transform:none;color:var(--mut);font-size:11.5px}
+  .grade{display:grid;gap:14px;grid-template-columns:repeat(12,minmax(0,1fr))}
+  .s12{grid-column:span 12}.s8{grid-column:span 8}.s7{grid-column:span 7}.s6{grid-column:span 6}.s5{grid-column:span 5}.s4{grid-column:span 4}
+  @media (max-width:1300px){.s8,.s7,.s6,.s5,.s4{grid-column:span 12}}
+  .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+  @media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .kpi{border-radius:16px;padding:14px 16px;background:var(--vidro);box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro);display:flex;flex-direction:column;gap:3px;
+    border-top:3px solid var(--c, var(--aro))}
+  .kpi .r{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--sub)}
+  .kpi .v{font:700 26px/1.15 var(--font-d);font-variant-numeric:tabular-nums}
+  .kpi .d{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+  /* funil */
+  .funil{display:flex;flex-direction:column;gap:8px}
+  .etapaF{display:grid;grid-template-columns:140px 1fr 150px;align-items:center;gap:12px;border:0;background:transparent;padding:0;cursor:pointer;text-align:left;color:inherit;border-radius:12px}
+  .etapaF:hover .barraF{filter:brightness(1.06)}
+  .etapaF.on .barraF{box-shadow:0 0 0 2px var(--txt)}
+  .etapaF .nF{font-size:12.5px;font-weight:600;color:var(--sub)}
+  .trilho{height:34px;border-radius:10px;background:color-mix(in srgb,var(--txt) 4%,transparent);position:relative}
+  .barraF{position:absolute;inset:0 auto 0 0;border-radius:10px;background:var(--c);min-width:4px;transition:width .5s var(--ease)}
+  .barraF span{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap}
+  .barraF.fora span{left:calc(100% + 8px);color:var(--txt)}
+  .etapaF .vF{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--sub);text-align:right}
+  .etapaF .vF b{color:var(--txt)}
+  .divF{display:grid;grid-template-columns:140px 1fr 150px;gap:12px;font-size:11px;color:var(--mut)}
+  /* gráfico de meses */
+  .grafico{position:relative}
+  .grafico svg{display:block;width:100%;height:240px;overflow:visible}
+  .grafico .eixo{fill:var(--mut);font-size:11px}
+  .grafico .grade-l{stroke:var(--aro);stroke-width:1}
+  .grafico rect.b{transition:opacity .15s}
+  .grafico g.mes{cursor:pointer}
+  .grafico g.mes:hover rect.b{opacity:.85}
+  .grafico g.mes.on .fundoMes{fill:color-mix(in srgb,var(--orc) 10%,transparent)}
+  .legendaG{display:flex;gap:14px;font-size:12px;color:var(--sub);margin-bottom:6px}
+  .legendaG span{display:flex;align-items:center;gap:6px}
+  .legendaG b{width:10px;height:10px;border-radius:3px;background:var(--c)}
+  .dica{position:fixed;z-index:20;pointer-events:none;padding:8px 10px;border-radius:10px;font-size:12px;min-width:150px;
+    background:var(--vidro-forte);box-shadow:inset 0 0 0 1px var(--aro), 0 10px 26px -10px var(--sombra-v);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+  .dica .t{font-weight:700;margin-bottom:4px;text-transform:capitalize}
+  .dica .l{display:flex;align-items:center;gap:7px;justify-content:space-between}
+  .dica .l i{width:12px;height:3px;border-radius:2px;background:var(--c);flex:none}
+  .dica .l span{flex:1;color:var(--sub)}
+  .dica .l b{font-variant-numeric:tabular-nums}
+  /* tabelas */
+  .tab{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  .tab th{text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);padding:6px 8px;border-bottom:1px solid var(--aro)}
+  .tab td{padding:7px 8px;border-bottom:1px solid color-mix(in srgb,var(--aro) 60%,transparent)}
+  .tab td.n,.tab th.n{text-align:right}
+  .tab tr.click{cursor:pointer}
+  .tab tr.click:hover td{background:var(--hov)}
+  .tab tr.on td{background:color-mix(in srgb,var(--orc) 10%,transparent)}
+  .rolar{overflow-x:auto}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;background:var(--c)}
+  .chip.agu{color:#2b2000}
+  .barrinha{height:8px;border-radius:99px;background:color-mix(in srgb,var(--txt) 6%,transparent);overflow:hidden;min-width:60px}
+  .barrinha i{display:block;height:100%;border-radius:99px;background:var(--c)}
+  .semDados{padding:26px;text-align:center;color:var(--mut);font-size:13px}
+
+  /* ---------- arquivados ---------- */
+  #vArq{flex-direction:column;overflow-y:auto;padding:4px 20px 24px;gap:14px;scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
+  .barraArq{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .barraArq .busca{margin-left:0}
+  .grupoArq{border-radius:16px;padding:12px 14px;background:var(--coluna);box-shadow:inset 0 0 0 1px var(--aro)}
+  .grupoArq header{padding:0 0 8px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:13.5px;flex-wrap:nowrap}
+  .grupoArq header small{font-weight:500;color:var(--mut);font-size:11.5px}
+  .grupoArq header .bt{margin-left:auto}
+
+  /* etapa já passada: discreta, com o ✓ (a atual fica colorida) */
+  .marca.passou{color:var(--sub);opacity:.75}
+  .marca.passou svg{opacity:.6}
+
+  /* aviso com Desfazer (arquivar) */
+  .aviso{position:fixed;left:50%;bottom:26px;z-index:30;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:16px;
+    font-size:13px;background:var(--vidro-forte);box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 18px 40px -12px var(--sombra-v);
+    -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%)}
+  .aviso[hidden]{display:none}
+  .aviso svg{width:15px;height:15px;stroke:var(--sub);stroke-width:1.7;fill:none;flex:none}
+  .aviso button{border:0;cursor:pointer;padding:6px 12px;border-radius:10px;font-weight:700;font-size:12.5px;color:#fff;background:var(--orc)}
+  .aviso.entra{animation:avisoEntra .3s var(--spring)}
+  .aviso.sai{opacity:0;transform:translate(-50%,8px);transition:opacity .2s, transform .2s}
+  @keyframes avisoEntra{from{opacity:0;transform:translate(-50%,14px) scale(.96)}}
+
+  /* completo x compacto */
+  .modoCards button{padding:5px 9px;display:grid;place-items:center}
+  .modoCards svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.6;fill:none}
+  body:not(:has(#vQuadro.on)) .modoCards{display:none}
+  .linhaNome{display:flex;align-items:center;gap:8px;min-width:0}
+  .linhaNome .nome{flex:1;min-width:0}
+  .stMini{display:none;flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;color:#fff;background:var(--c);white-space:nowrap}
+  .stMini.agu{color:#2b2000}
+  .stMini.sem{color:var(--mut);background:color-mix(in srgb,var(--txt) 6%,transparent);box-shadow:inset 0 0 0 1px var(--aro)}
+  main.compacto .card{padding:8px 10px;cursor:pointer}
+  main.compacto .card .stMini{display:inline-block}
+  main.compacto .card:not(.expandido) .linhaNome{flex-direction:column;align-items:flex-start;gap:5px}
+  main.compacto .card .nome{padding-right:0;font-size:13px;white-space:normal;word-break:break-word}
+  main.compacto .card:not(.expandido) .nome{width:100%}
+  main.compacto .card:not(.expandido) :is(.marcas,.slotMotivo,.rodapeCard,.acoesCard){display:none}
+  main.compacto .card.expandido{cursor:default}
+  .recolher{display:none;width:22px;height:22px;border:0;border-radius:7px;background:transparent;color:var(--mut);cursor:pointer;place-items:center}
+  .recolher svg{width:11px;height:11px;stroke:currentColor;stroke-width:2;fill:none}
+  .recolher:hover{background:var(--hov);color:var(--txt)}
+  main.compacto .card.expandido .recolher{display:grid}
+  main.compacto .card.expandido .nome{cursor:pointer}
+  main.compacto .card.expandido .nome{padding-right:74px}
+  main.compacto .card.expandido .stMini{display:none}
+  main.compacto .card.expandido .nome{white-space:normal;padding-right:50px}
+  main.compacto .cards{gap:5px}
+
+  /* busca do topo: só a lupa; abre ao clicar */
+  .buscaTopo{width:34px;padding:0;gap:0;overflow:hidden;transition:width .32s var(--ease), box-shadow .2s}
+  .buscaTopo.aberta{width:min(300px,34vw);padding:0 4px 0 0}
+  .buscaTopo .lupa{flex:none;width:34px;height:34px;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;color:var(--sub)}
+  .buscaTopo .lupa:hover{color:var(--txt)}
+  .buscaTopo .lupa svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none}
+  .buscaTopo input{min-width:0;opacity:0;transition:opacity .2s}
+  .buscaTopo.aberta input{opacity:1}
+  .buscaTopo .seta{flex:none;width:26px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--mut);cursor:pointer;display:grid;place-items:center;opacity:0;transition:opacity .2s, background .15s}
+  .buscaTopo.aberta .seta{opacity:1}
+  .buscaTopo .seta:hover{background:var(--hov);color:var(--txt)}
+  .buscaTopo .seta svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
+  .buscaTopo:not(.aberta) .busca svg{stroke:var(--sub)}
+  /* sugestões de clientes, no design do app */
+  .sugestoes{position:fixed;z-index:40;max-height:300px;overflow-y:auto;padding:6px;border-radius:14px;display:flex;flex-direction:column;gap:2px;
+    background:var(--vidro-forte);box-shadow:inset 0 1px 0 var(--brilho), inset 0 0 0 1px var(--aro), 0 18px 40px -14px var(--sombra-v);
+    -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);animation:abre .18s var(--ease);
+    scrollbar-width:thin;scrollbar-color:var(--aro) transparent}
+  .sugestoes[hidden]{display:none}
+  .sug{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:10px;cursor:pointer;font-size:13px}
+  .sug .sNome{min-width:0;word-break:break-word}
+  .sug .sNome b{color:var(--orc);font-weight:700}
+  .sug small{flex:none;font-size:11px;color:var(--mut)}
+  .sug.ja{opacity:.55}
+  .sugVazio{padding:9px 10px;font-size:12.5px;color:var(--sub);max-width:280px}
+  .sug.on,.sug:hover{background:var(--vidro-h);box-shadow:inset 0 0 0 1px var(--aro)}
+
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <header>
   <h1><span class="logo" aria-hidden="true"><svg viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="3"/><path d="M7.5 3.5v13M12.5 3.5v13"/><rect x="4" y="6" width="2" height="3" rx=".6" class="p"/><rect x="9" y="6" width="2" height="5" rx=".6" class="p"/><rect x="14" y="6" width="2" height="2" rx=".6" class="p"/></svg></span>QUADRO DE RT</h1>
-  <span class="sync" id="sync" data-s="local"><i></i><span id="syncTxt">Só neste computador</span></span>
-  <div class="legenda"><span><b style="background:var(--agu)"></b>Aguardando orçamento</span><span><b style="background:var(--orc)"></b>Orçamento enviado</span><span><b style="background:var(--fech)"></b>Fechado</span></div>
-  <label class="busca"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3" stroke-linecap="round"/></svg>
-    <input id="busca" placeholder="Destacar cliente…" aria-label="Destacar cliente" list="clientes"></label>
+  <nav class="abas" aria-label="Seções">
+    <button type="button" data-v="vQuadro" class="on" title="Quadro" aria-label="Quadro"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11M10 2.5v11"/></svg><span class="rotAba">Quadro</span></button>
+    <button type="button" data-v="vRel" title="Relatórios" aria-label="Relatórios"><svg viewBox="0 0 16 16"><path d="M2.5 13.5h11" stroke-linecap="round"/><rect x="3.5" y="8" width="2.2" height="4" rx=".6"/><rect x="7" y="5" width="2.2" height="7" rx=".6"/><rect x="10.5" y="2.5" width="2.2" height="9.5" rx=".6"/></svg><span class="rotAba">Relatórios</span></button>
+    <button type="button" data-v="vArq" title="Arquivados" aria-label="Arquivados"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="3.2" rx="1"/><path d="M3.2 6.2v6.3a1 1 0 0 0 1 1h7.6a1 1 0 0 0 1-1V6.2M6.5 9h3" stroke-linecap="round"/></svg><span class="rotAba">Arquivados</span><b id="nArq">0</b></button>
+  </nav>
+  <div class="seg modoCards" id="modoCards" role="group" aria-label="Como mostrar os cartões">
+    <button type="button" data-k="compacto" title="Compacto: só o cliente e a etapa" aria-label="Cartões compactos"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="5.2" rx="1.4"/><rect x="2" y="8.8" width="12" height="5.2" rx="1.4"/></svg></button>
+    <button type="button" data-k="completo" title="Completo: todas as informações" aria-label="Cartões completos"><svg viewBox="0 0 16 16"><path d="M2.5 3.5h11M2.5 6.5h11M2.5 9.5h11M2.5 12.5h11" stroke-linecap="round"/></svg></button>
+  </div>
+  <span class="sync" id="sync" data-s="local" title="Só neste computador" role="status" aria-label="Só neste computador"><i></i></span>
+  <span class="pendente" id="pendente" title="Soma dos orçamentos enviados que ainda aguardam resposta do cliente"></span>
+  <div class="busca buscaTopo" id="buscaTopo">
+    <button class="lupa" id="lupa" type="button" title="Destacar cliente" aria-label="Destacar cliente"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3" stroke-linecap="round"/></svg></button>
+    <input id="busca" placeholder="Destacar cliente…" aria-label="Destacar cliente" autocomplete="off">
+    <button class="seta" id="buscaSeta" type="button" tabindex="-1" aria-label="Ver todos os clientes"><svg viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
   <button class="atualizar" id="atualizar" type="button" hidden><i></i><span id="atualizarTxt"></span></button>
   <button class="icone" id="configBtn" type="button" title="Configurações" aria-label="Configurações"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><circle cx="8" cy="8" r="4.6"/><path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5" stroke-linecap="round"/></svg></button>
   <button class="icone" id="fechar" type="button" title="Minimizar (Win + F ou Esc)" aria-label="Minimizar"><svg viewBox="0 0 16 16"><path d="M3.5 8h9" stroke-linecap="round"/></svg></button>
 </header>
-<main id="quadro"></main>
-<datalist id="clientes"></datalist>
+
+<div class="vista on" id="vQuadro">
+  <aside class="lateral" id="lateral" aria-label="Clientes em obra">
+    <div class="topoL">Clientes em obra <span id="nCli">0</span></div>
+    <input class="novoCli" id="novoCli" maxlength="80" placeholder="+ Novo cliente… (Enter)" aria-label="Novo cliente">
+    <div class="listaCli" id="listaCli"></div>
+  </aside>
+  <button class="setaLado" id="setaLado" type="button" title="Mostrar/ocultar clientes" aria-label="Mostrar ou ocultar a lista de clientes"><svg viewBox="0 0 12 12"><path d="M7.5 2.5L4 6l3.5 3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <main id="quadro"></main>
+</div>
+
+<div class="vista" id="vRel"></div>
+<div class="vista" id="vArq"></div>
+<div class="dica" id="dica" hidden></div>
+<div class="aviso" id="aviso" role="status" hidden><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="3.2" rx="1"/><path d="M3.2 6.2v6.3a1 1 0 0 0 1 1h7.6a1 1 0 0 0 1-1V6.2M6.5 9h3" stroke-linecap="round"/></svg><span></span><button type="button" id="desfazer">Desfazer</button></div>
+<div class="sugestoes" id="sugestoes" role="listbox" hidden></div>
 
 <div id="config" role="dialog" aria-label="Configurações do quadro">
-  <label>Seu nome <input id="cfgNome" maxlength="30" placeholder="Ex.: Levy"></label>
+  <label>Seu nome <input id="cfgNome" maxlength="30" placeholder="Ex.: Ana"></label>
   <label>Endereço do Firebase <input id="cfgUrl" placeholder="https://…firebaseio.com"></label>
   <label>Código do quadro <input id="cfgCodigo" maxlength="80"></label>
   <p>Quem usar o mesmo endereço e o mesmo código vê o mesmo quadro. O seu nome aparece nos cartões que você alterar.</p>
 </div>
 
 <script>
-// ---------------- configuração ----------------
+// ================= configuração =================
 const ETAPAS = [
   ['marcenaria','Marcenaria'], ['iluminacao','Iluminação'], ['marmoraria','Marmoraria'], ['revestimentos','Revestimentos'],
   ['automacao','Automação'], ['loucas','Louças e metais'], ['cortinas','Cortinas'], ['ilum_decorativa','Iluminação decorativa'],
   ['decoracao','Decoração'], ['moveis','Móveis soltos'], ['vidracaria','Vidraçaria e espelhos'], ['serralheria','Serralheria']
 ];
+const NOME_ETAPA = Object.fromEntries(ETAPAS);
+// ícones das etapas (traço fino, 16×16)
+const ICONE_ETAPA = {
+  marcenaria: '<rect x="2.5" y="2" width="11" height="12" rx="1.2"/><path d="M8 2v12M6.3 7.5v1.6M9.7 7.5v1.6M2.5 12h11"/>',
+  iluminacao: '<path d="M8 1.8v2.4M4.2 6.5h7.6l-1.1 3.3H5.3z"/><path d="M6.5 12.3l-.6 1.8M9.5 12.3l.6 1.8M8 12.3v2"/>',
+  marmoraria: '<rect x="2" y="3.5" width="12" height="9" rx="1.4"/><path d="M4.5 6.5c1.5.3 2 1.6 3.4 1.6s1.8-1.3 3.6-1.1M5 10.3c1.2-.8 2.6-.1 3.7-.6"/>',
+  revestimentos: '<rect x="2" y="2" width="12" height="12" rx="1.4"/><path d="M2 6h12M2 10h12M6 2v4M10 6v4M6 10v4"/>',
+  automacao: '<path d="M2.5 7.5L8 3l5.5 4.5V13a.8.8 0 0 1-.8.8H3.3a.8.8 0 0 1-.8-.8z"/><path d="M6 10.2a2.8 2.8 0 0 1 4 0M7.1 11.6a1.2 1.2 0 0 1 1.8 0"/>',
+  loucas: '<path d="M3 6.5h5.5a2 2 0 0 1 2 2v1M10.5 9.5v.6M3 4.5v4M5.7 4.5V2.8h-2"/><path d="M2 13.5h12M4 13.5c0-1.4 1.8-2.2 4-2.2s4 .8 4 2.2"/>',
+  cortinas: '<path d="M2 2.5h12"/><path d="M3 2.5v11c1.4 0 2.6-2.6 3-5.2.3-2.2.2-4.2.2-5.8M13 2.5v11c-1.4 0-2.6-2.6-3-5.2-.3-2.2-.2-4.2-.2-5.8"/>',
+  ilum_decorativa: '<path d="M8 1.5v4"/><path d="M4 9.5a4 4 0 0 1 8 0z"/><path d="M6.8 11.5a1.3 1.3 0 0 0 2.4 0M4.8 5.5h6.4"/>',
+  decoracao: '<path d="M5.5 13.8h5l.8-5.6H4.7z"/><path d="M8 8.2V5.6M8 5.6c0-1.8 1.2-3.2 3-3.4-.1 1.9-1.3 3.3-3 3.4zM8 6.6C7.9 5 6.8 3.8 5.1 3.6c.1 1.7 1.3 2.9 2.9 3z"/>',
+  moveis: '<path d="M3.2 8V5.5a1.5 1.5 0 0 1 1.5-1.5h6.6a1.5 1.5 0 0 1 1.5 1.5V8"/><path d="M2 9.2a1.2 1.2 0 0 1 2.4 0v1h7.2v-1a1.2 1.2 0 0 1 2.4 0V12H2zM3.5 12v1.5M12.5 12v1.5"/>',
+  vidracaria: '<rect x="3" y="1.8" width="10" height="12.4" rx="1.4"/><path d="M5.6 6.4l3-3M5.6 9.6l5.4-5.4"/>',
+  serralheria: '<path d="M2 3.5h12M2 13.5h12M3.5 3.5v10M6.5 3.5v10M9.5 3.5v10M12.5 3.5v10"/><path d="M3.5 7.5c1 .9 2 .9 3 0s2-.9 3 0 2 .9 3 0"/>'
+};
+const iconeEtapa = id => `<span class="icoEtapa" aria-hidden="true"><svg viewBox="0 0 16 16">${ICONE_ETAPA[id] || ''}</svg></span>`;
+
+const MARCAS = [['agu','Aguardando orçamento'], ['orc','Orçamento enviado'], ['fech','Fechado'], ['nao','Não fechou']];
+const MOTIVOS = { outro_fornecedor: 'Fechou com outro fornecedor', conta_propria: 'Fechou por conta própria', desistiu: 'Desistiu ou adiou', outro: 'Outro motivo' };
+const COR = { agu: 'var(--agu)', orc: 'var(--orc)', fech: 'var(--fech)', nao: 'var(--nao)' };
 const PADRAO = { url: 'https://quadro-de-obras-default-rtdb.firebaseio.com', codigo: '', nome: '' }; // código e nome vêm do app (quadro.txt), nunca do código publicado
-const KEY_CFG = 'obras-config', KEY_DADOS = 'obras-cache', KEY_FILA = 'obras-pendentes';
+const KEY_CFG = 'obras-config', KEY_DADOS = 'obras-cache2', KEY_FILA = 'obras-pendentes2', KEY_LADO = 'obras-lateral';
 const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch(e) { return d; } };
 const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} };
 let cfg = Object.assign({ nome: PADRAO.nome, url: PADRAO.url, codigo: PADRAO.codigo }, ler(KEY_CFG, {}));
-let cards = ler(KEY_DADOS, {});        // id -> {id, cliente, etapa, ordem, orc, fech, por, em}
-let fila = ler(KEY_FILA, {});          // id -> card (ou null para apagar) ainda não enviado
+// dados: dois grupos sincronizados. cards: um por cliente+etapa. clientes: a lista mãe.
+let db = ler(KEY_DADOS, null) || { cards: ler('obras-cache', {}) || {}, clientes: {} }; // 'obras-cache' = versão 1.1
+db.cards = db.cards || {}; db.clientes = db.clientes || {};
+let fila = ler(KEY_FILA, {});          // 'cards/<id>' ou 'clientes/<id>' -> objeto (ou null = apagar), ainda não enviado
 const host = window.chrome && window.chrome.webview;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const ICO_X = '<svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg>';
 const ICO_OK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICO_ARQ = '<svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="3.2" rx="1"/><path d="M3.2 6.2v6.3a1 1 0 0 0 1 1h7.6a1 1 0 0 0 1-1V6.2M6.5 9h3" stroke-linecap="round"/></svg>';
+const brl = v => typeof v === 'number' ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
+const brlCurto = v => v >= 1e6 ? 'R$ ' + (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi' : v >= 1e3 ? 'R$ ' + (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : brl(v);
+const hora = t => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+const dia = t => t ? new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+// "5000", "5.000", "5.000,50", "5000,5", "R$ 5.000,00" -> número
+function lerValor(txt){
+  let t = String(txt || '').replace(/[^\d.,]/g, '');
+  if (!t) return null;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  const n = Number(t);
+  return isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+const nomeCli = c => (db.clientes[c.clienteId] && db.clientes[c.clienteId].nome) || c.cliente || 'Sem nome';
+const ativos = () => Object.values(db.cards).filter(c => !c.arq);
 
 // tema: o mesmo escolhido no painel de demandas
 function aplicarTema(){
-  const t = (ler('painel-demandas-vista', {}).tema) || 'claro';
+  const t = window.__tema || (ler('painel-demandas-vista', {}).tema) || 'claro';
   document.documentElement.dataset.tema = t;
   try { host && host.postMessage('tema:' + t); } catch(e) {}
 }
 aplicarTema();
 addEventListener('storage', e => { if (e.key === 'painel-demandas-vista') aplicarTema(); });
 
-// ---------------- sincronização (Firebase Realtime Database, via REST) ----------------
-const base = () => cfg.url && cfg.codigo.length >= 24 ? `${cfg.url.replace(/\/+$/, '')}/quadros/${encodeURIComponent(cfg.codigo)}/cards` : null;
-let fonte = null, estado = 'local';
-function status(s, txt){
-  estado = s;
-  document.getElementById('sync').dataset.s = s;
-  document.getElementById('syncTxt').textContent = txt;
-}
-let backupEspera;
+// ================= sincronização (Firebase Realtime Database, via REST) =================
+const base = () => cfg.url && cfg.codigo.length >= 24 ? `${cfg.url.replace(/\/+$/, '')}/quadros/${encodeURIComponent(cfg.codigo)}` : null;
+let fonte = null, estado = 'local', carregado = false;
+function status(s, txt){ estado = s; const el = document.getElementById('sync'); el.dataset.s = s; el.title = txt; el.setAttribute('aria-label', txt); }
+// cada alteração vai na hora para o arquivo do app; ao abrir, vence a versão mais nova (navegador x arquivo)
+let conferido = !host;
 function salvarLocal(){
-  gravar(KEY_DADOS, cards); gravar(KEY_FILA, fila);
-  clearTimeout(backupEspera);
-  backupEspera = setTimeout(() => { try { host && host.postMessage('backup:obras:' + JSON.stringify(cards)); } catch(e) {} }, 3000);
+  db.salvoEm = Date.now();
+  gravar(KEY_DADOS, db); gravar(KEY_FILA, fila);
+  enviarCopia();
 }
-
+function enviarCopia(){ if (conferido && host) { try { host.postMessage('backup:obras:' + JSON.stringify(db)); } catch(e) {} } }
+function aplicarRemoto(partes, valor){
+  const [col, id, ...campo] = partes;
+  if (col !== 'cards' && col !== 'clientes') return;
+  if (!id) {                                   // grupo inteiro
+    const remoto = valor || {};
+    for (const k of Object.keys(db[col])) if (!(k in remoto) && !((col + '/' + k) in fila)) delete db[col][k];
+    for (const [k, v] of Object.entries(remoto)) if (!((col + '/' + k) in fila)) db[col][k] = v;
+    return;
+  }
+  if ((col + '/' + id) in fila) return;        // mudança local ainda não enviada vence
+  if (!campo.length) { valor ? db[col][id] = valor : delete db[col][id]; }
+  else if (db[col][id]) db[col][id][campo[0]] = valor;
+}
 function conectar(){
   if (fonte) { fonte.close(); fonte = null; }
   const b = base();
-  if (!b) { status('local', 'Só neste computador'); return; }
+  if (!b) { status('local', 'Só neste computador'); carregado = true; migrar(); return; }
   status('enviando', 'Conectando…');
-  // fluxo ao vivo: o Firebase avisa cada mudança na hora
-  fonte = new EventSource(b + '.json');
+  fonte = new EventSource(b + '.json');        // fluxo ao vivo: o Firebase avisa cada mudança na hora
   const aplicar = (tipo, ev) => {
     let d; try { d = JSON.parse(ev.data); } catch(e) { return; }
     if (!d) return;
     const partes = (d.path || '/').split('/').filter(Boolean);
-    if (partes.length === 0) {
-      if (tipo === 'put') {                       // estado completo
-        const remoto = d.data || {};
-        for (const id of Object.keys(cards)) if (!(id in remoto) && !(id in fila)) delete cards[id];
-        for (const [id, c] of Object.entries(remoto)) if (!(id in fila)) cards[id] = c;
-      } else for (const [id, c] of Object.entries(d.data || {})) if (!(id in fila)) { c ? cards[id] = c : delete cards[id]; }
-    } else {
-      const id = partes[0];
-      if (id in fila) return;                     // mudança local ainda não enviada vence
-      if (partes.length === 1) { d.data ? cards[id] = d.data : delete cards[id]; }
-      else if (cards[id]) cards[id][partes[1]] = d.data;
-    }
-    salvarLocal(); desenhar();
+    if (!partes.length) {
+      if (tipo === 'put') { aplicarRemoto(['cards'], (d.data || {}).cards); aplicarRemoto(['clientes'], (d.data || {}).clientes); }
+      else for (const [k, v] of Object.entries(d.data || {})) aplicarRemoto(k.split('/').filter(Boolean), v);
+    } else if (tipo === 'put') aplicarRemoto(partes, d.data);
+    else for (const [k, v] of Object.entries(d.data || {})) aplicarRemoto(partes.concat(k.split('/').filter(Boolean)), v);
+    salvarLocal();
+    if (!carregado) { carregado = true; migrar(); }
+    desenharTudo();
     if (!Object.keys(fila).length) status('ok', 'Sincronizado');
   };
   fonte.addEventListener('put', ev => aplicar('put', ev));
   fonte.addEventListener('patch', ev => aplicar('patch', ev));
-  fonte.addEventListener('open', () => { enviarFila(); });
+  fonte.addEventListener('open', () => enviarFila());
   fonte.onerror = () => status('offline', 'Sem conexão: as mudanças ficam guardadas aqui');
 }
-
 let enviando = false;
 async function enviarFila(){
   const b = base(); if (!b || enviando) return;
-  const ids = Object.keys(fila); if (!ids.length) { if (estado !== 'offline') status('ok', 'Sincronizado'); return; }
+  const chaves = Object.keys(fila); if (!chaves.length) { if (estado !== 'offline') status('ok', 'Sincronizado'); return; }
   enviando = true; status('enviando', 'Salvando…');
   try {
-    for (const id of ids) {
-      const c = fila[id];
-      const r = await fetch(`${b}/${encodeURIComponent(id)}.json`, c ? { method: 'PUT', body: JSON.stringify(c) } : { method: 'DELETE' });
+    for (const k of chaves) {
+      const v = fila[k], [col, id] = k.split('/');
+      const r = await fetch(`${b}/${col}/${encodeURIComponent(id)}.json`, v ? { method: 'PUT', body: JSON.stringify(v) } : { method: 'DELETE' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      if (fila[id] === c) delete fila[id];
+      if (fila[k] === v) delete fila[k];
     }
     salvarLocal(); status('ok', 'Sincronizado');
-  } catch(e) {
-    status('offline', 'Sem conexão: as mudanças ficam guardadas aqui');
-  } finally { enviando = false; }
+  } catch(e) { status('offline', 'Sem conexão: as mudanças ficam guardadas aqui'); }
+  finally { enviando = false; }
 }
 setInterval(enviarFila, 8000);
-addEventListener('online', () => { conectar(); });
+addEventListener('online', () => conectar());
 
 // toda alteração passa por aqui: grava local, desenha e envia
-function mudar(id, c){
-  if (c) { c.por = cfg.nome || ''; c.em = Date.now(); cards[id] = c; } else delete cards[id];
-  fila[id] = c || null;
-  salvarLocal(); desenhar(); enviarFila();
+function mudar(col, id, obj, semDesenhar){
+  if (obj) { obj.por = cfg.nome || ''; obj.em = Date.now(); db[col][id] = obj; } else delete db[col][id];
+  fila[col + '/' + id] = obj || null;
+  salvarLocal(); if (!semDesenhar) desenharTudo(); enviarFila();
 }
 
-// ---------------- quadro ----------------
-let arrastandoId = null, filtro = '';
-const daEtapa = e => Object.values(cards).filter(c => c.etapa === e).sort((a, b) => a.ordem - b.ordem);
-const hora = t => t ? new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+// versão 1.1 -> 1.2: cartões viram "cliente da lista + etapa"; "R$ 5.000,00" escrito no nome vira valor
+function migrar(){
+  let mexeu = false;
+  for (const c of Object.values(db.cards)) {
+    if (c.clienteId) continue;
+    let nome = String(c.cliente || '').trim(), valor = c.valor ?? null;
+    const m = nome.match(/\s*[-–]?\s*R\$\s*([\d.]+(?:,\d{1,2})?)\s*$/i);
+    if (m) { if (valor == null) valor = lerValor(m[1]); nome = nome.slice(0, m.index).replace(/[\s\-–]+$/, ''); }
+    let cli = Object.values(db.clientes).find(x => x.nome.toLowerCase() === nome.toLowerCase());
+    if (!cli) { const id = uid(); cli = { id, nome, criadoEm: c.em || Date.now() }; mudar('clientes', id, cli, true); }
+    const novo = Object.assign({}, c, { clienteId: cli.id, cliente: nome, valor });
+    for (const [m2] of MARCAS) if (novo[m2] && !novo[m2 + 'Em']) { novo[m2 + 'Em'] = c.em || Date.now(); novo[m2 + 'Por'] = c.por || ''; }
+    const por = c.por, em = c.em;
+    mudar('cards', c.id, novo, true); db.cards[c.id].por = por; db.cards[c.id].em = em; // conversão não conta como edição
+    mexeu = true;
+  }
+  for (const c of Object.values(db.cards)) {
+    if (c.status !== undefined) continue;
+    const n = comStatus(Object.assign({}, c), statusDe(c)), por = c.por, em = c.em;
+    mudar('cards', c.id, n, true); db.cards[c.id].por = por; db.cards[c.id].em = em; mexeu = true;
+  }
+  if (mexeu) { salvarLocal(); enviarFila(); }
+  desenharTudo();
+}
+
+// ================= abas =================
+let vistaAtual = 'vQuadro';
+document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
+  vistaAtual = b.dataset.v;
+  document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === vistaAtual));
+  buscaTopo.style.visibility = vistaAtual === 'vQuadro' ? '' : 'hidden'; fecharSugestoes();
+  desenharTudo();
+});
+// soma dos orçamentos enviados que ainda esperam resposta (atualiza junto com o quadro)
+function atualizarPendente(){
+  const l = ativos().filter(c => statusDe(c) === 'orc');
+  const total = l.reduce((s, c) => s + (c.valor || 0), 0);
+  document.getElementById('pendente').textContent = `Pendente de fechamento: ${brl(total)}`;
+  document.getElementById('pendente').title = `${l.length} orçamento${l.length === 1 ? '' : 's'} enviado${l.length === 1 ? '' : 's'} aguardando resposta do cliente`;
+}
+function desenharTudo(){
+  atualizarPendente();
+  document.getElementById('nArq').textContent = Object.values(db.cards).filter(c => c.arq).length;
+  if (vistaAtual === 'vQuadro') { desenharLista(); desenhar(); }
+  else if (vistaAtual === 'vRel') desenharRelatorio();
+  else desenharArquivados();
+}
+
+// ---------- lista de sugestões de clientes, no mesmo design (usada na busca e no "Adicionar cliente") ----------
+const sugBox = document.getElementById('sugestoes');
+let sugAtual = null; // { inp, itens, sel, escolher }
+function fecharSugestoes(){ sugBox.hidden = true; sugAtual = null; }
+function mostrarSugestoes(inp, escolher, todos, opc = {}){
+  const q = todos ? '' : inp.value.trim().toLowerCase();
+  const itens = Object.values(db.clientes).filter(c => !c.arq && c.nome.toLowerCase().includes(q))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).slice(0, 50);
+  sugBox.innerHTML = '';
+  if (!itens.length) {
+    if (!opc.vazio) { fecharSugestoes(); return; }
+    const m = document.createElement('div'); m.className = 'sugVazio'; m.textContent = opc.vazio(inp.value.trim()); sugBox.append(m);
+    sugAtual = { inp, itens: [], sel: -1, escolher, opc };
+  } else sugAtual = { inp, itens, sel: -1, escolher, opc };
+  itens.forEach((cli, i) => {
+    const n = ativos().filter(c => c.clienteId === cli.id).length;
+    const it = document.createElement('div'); it.className = 'sug'; it.setAttribute('role', 'option');
+    it.innerHTML = '<span class="sNome"></span><small></small>';
+    const nome = it.querySelector('.sNome'), ini = q ? cli.nome.toLowerCase().indexOf(q) : -1;
+    if (ini >= 0) { nome.append(cli.nome.slice(0, ini)); const b = document.createElement('b'); b.textContent = cli.nome.slice(ini, ini + q.length); nome.append(b, cli.nome.slice(ini + q.length)); }
+    else nome.textContent = cli.nome;
+    const jaNaColuna = opc.etapa && ativos().some(c => c.clienteId === cli.id && c.etapa === opc.etapa);
+    it.querySelector('small').textContent = jaNaColuna ? 'já nesta coluna' : n ? `${n} etapa${n === 1 ? '' : 's'}` : 'sem etapas';
+    if (jaNaColuna) it.classList.add('ja');
+    it.onmousedown = e => { e.preventDefault(); escolher(cli.nome); fecharSugestoes(); }; // mousedown: o campo não perde o foco
+    it.onmousemove = () => marcarSug(i);
+    sugBox.append(it);
+  });
+  const r = inp.getBoundingClientRect();
+  sugBox.style.left = Math.min(r.left, innerWidth - Math.max(r.width, 240) - 10) + 'px';
+  sugBox.style.width = Math.max(r.width, 240) + 'px';
+  const embaixo = innerHeight - r.bottom > 220;
+  sugBox.style.top = embaixo ? (r.bottom + 6) + 'px' : 'auto';
+  sugBox.style.bottom = embaixo ? 'auto' : (innerHeight - r.top + 6) + 'px';
+  sugBox.hidden = false;
+}
+function marcarSug(i){ if (!sugAtual) return; sugAtual.sel = i; [...sugBox.children].forEach((el, k) => el.classList.toggle('on', k === i)); sugBox.children[i]?.scrollIntoView({ block: 'nearest' }); }
+function ligarSugestoes(inp, escolher, opc = {}){
+  inp.addEventListener('input', () => mostrarSugestoes(inp, escolher, opc.sempre && !inp.value.trim(), opc));
+  inp.addEventListener('focus', () => { if (inp.value.trim() || opc.sempre) mostrarSugestoes(inp, escolher, !inp.value.trim(), opc); });
+  inp.addEventListener('blur', () => setTimeout(() => { if (sugAtual && sugAtual.inp === inp) fecharSugestoes(); }, 120));
+  inp.addEventListener('keydown', e => {
+    if (!sugAtual || sugAtual.inp !== inp || sugBox.hidden) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); marcarSug(Math.min(sugAtual.itens.length - 1, sugAtual.sel + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); marcarSug(Math.max(0, sugAtual.sel - 1)); }
+    else if (e.key === 'Enter' && sugAtual.sel < 0 && sugAtual.opc && sugAtual.opc.soDaLista && sugAtual.itens.length) { // Enter sem escolher: usa o primeiro da lista
+      e.preventDefault(); e.stopImmediatePropagation(); const n = sugAtual.itens[0].nome; fecharSugestoes(); escolher(n); }
+    else if (e.key === 'Enter' && sugAtual.sel >= 0) { e.preventDefault(); e.stopImmediatePropagation(); const n = sugAtual.itens[sugAtual.sel].nome; fecharSugestoes(); escolher(n); } // igual a clicar no nome
+    else if (e.key === 'Escape') { e.stopPropagation(); fecharSugestoes(); }
+  });
+}
+addEventListener('resize', fecharSugestoes);
+
+// ================= lista mãe de clientes =================
+const lateral = document.getElementById('lateral');
+if (ler(KEY_LADO, true) === false) lateral.classList.add('fechada');
+document.getElementById('setaLado').onclick = () => { lateral.classList.toggle('fechada'); gravar(KEY_LADO, !lateral.classList.contains('fechada')); setTimeout(ajustarFileiras, 340); };
+let arrastando = null;  // {tipo:'card'|'cliente', id}
+
+function novoCliente(nome){
+  nome = nome.trim(); if (!nome) return null;
+  const existe = Object.values(db.clientes).find(x => x.nome.toLowerCase() === nome.toLowerCase());
+  if (existe) { if (existe.arq) mudar('clientes', existe.id, Object.assign({}, existe, { arq: false })); return existe; }
+  const id = uid(); const cli = { id, nome, criadoEm: Date.now() }; mudar('clientes', id, cli); return db.clientes[id];
+}
+document.getElementById('novoCli').onkeydown = e => {
+  if (e.key === 'Enter') { e.preventDefault(); if (novoCliente(e.target.value)) e.target.value = ''; }
+  if (e.key === 'Escape') e.target.blur();
+};
+
+function desenharLista(){
+  const box = document.getElementById('listaCli'); const rol = box.scrollTop; box.innerHTML = '';
+  const lista = Object.values(db.clientes).filter(c => !c.arq).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  document.getElementById('nCli').textContent = lista.length;
+  if (!lista.length) box.innerHTML = '<div class="vazio">Cadastre os clientes em obra acima e arraste-os para as colunas.</div>';
+  for (const cli of lista) {
+    const seus = ativos().filter(c => c.clienteId === cli.id);
+    const el = document.createElement('div');
+    el.className = 'cli' + (filtro && cli.nome.toLowerCase() === filtro ? ' on' : '');
+    el.draggable = true; el.title = 'Arraste para uma coluna · clique para destacar · dois cliques para renomear';
+    const conta = m => seus.filter(c => c[m]).length;
+    el.innerHTML = `<div class="cNome"></div><div class="cResumo"><span>${seus.length} etapa${seus.length === 1 ? '' : 's'}</span>
+      ${conta('orc') ? `<i style="--c:var(--orc)">${conta('orc')} enviado${conta('orc') === 1 ? '' : 's'}</i>` : ''}
+      ${conta('fech') ? `<i style="--c:var(--fech)">${conta('fech')} fechado${conta('fech') === 1 ? '' : 's'}</i>` : ''}
+      ${conta('nao') ? `<i style="--c:var(--nao)">${conta('nao')} não</i>` : ''}</div>
+      <button class="arqCli" type="button" title="Arquivar cliente" aria-label="Arquivar cliente">${ICO_ARQ}</button>`;
+    const nome = el.querySelector('.cNome'); nome.textContent = cli.nome;
+    el.dataset.nome = cli.nome.toLowerCase();
+    // clique simples destaca; espera um instante para não atrapalhar o duplo clique (renomear)
+    let cliqueEspera;
+    el.onclick = e => { if (e.target.closest('.arqCli') || nome.contentEditable === 'true' || e.detail > 1) return;
+      clearTimeout(cliqueEspera); cliqueEspera = setTimeout(() => destacar(cli.nome), 230); };
+    nome.ondblclick = () => { clearTimeout(cliqueEspera); nome.contentEditable = true; el.draggable = false; nome.focus(); document.getSelection().selectAllChildren(nome); };
+    const fim = ok => { if (nome.contentEditable !== 'true') return; nome.contentEditable = false; el.draggable = true;
+      const v = nome.textContent.trim(); if (ok && v && v !== cli.nome) mudar('clientes', cli.id, Object.assign({}, cli, { nome: v })); else nome.textContent = cli.nome; };
+    nome.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fim(true); } if (e.key === 'Escape') fim(false); };
+    nome.onblur = () => fim(true);
+    el.querySelector('.arqCli').onclick = () => arquivarCliente(cli.id);
+    el.addEventListener('dragstart', e => { arrastando = { tipo: 'cliente', id: cli.id }; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', cli.nome); });
+    el.addEventListener('dragend', () => { arrastando = null; limparAlvos(); });
+    box.append(el);
+  }
+  box.scrollTop = rol;
+}
+
+// arquivar: guarda como tudo estava antes e mostra "Desfazer" por alguns segundos
+let avisoEspera, desfazerAtual = null;
+function avisarDesfazer(texto, antes){
+  desfazerAtual = antes;
+  const a = document.getElementById('aviso');
+  a.querySelector('span').textContent = texto;
+  a.hidden = false; a.classList.remove('sai'); void a.offsetWidth; a.classList.add('entra');
+  clearTimeout(avisoEspera);
+  avisoEspera = setTimeout(fecharAviso, 7000);
+}
+function fecharAviso(){ const a = document.getElementById('aviso'); a.classList.add('sai'); setTimeout(() => { a.hidden = true; }, 220); desfazerAtual = null; }
+function desfazer(){
+  if (!desfazerAtual) return;
+  for (const [col, id, obj] of desfazerAtual) mudar(col, id, JSON.parse(JSON.stringify(obj)), true);
+  desfazerAtual = null; clearTimeout(avisoEspera); fecharAviso(); desenharTudo();
+}
+const copia = o => JSON.parse(JSON.stringify(o));
+function arquivarCliente(id, jaGuardado){
+  const cli = db.clientes[id]; if (!cli) return;
+  const seus = ativos().filter(c => c.clienteId === id);
+  const antes = (jaGuardado || []).concat([['clientes', id, copia(cli)]], seus.map(c => ['cards', c.id, copia(c)]));
+  for (const c of seus) mudar('cards', c.id, Object.assign({}, c, { arq: true, arqEm: Date.now(), arqPor: cfg.nome, arqCliente: true }), true);
+  mudar('clientes', id, Object.assign({}, cli, { arq: true, arqEm: Date.now(), arqPor: cfg.nome }));
+  avisarDesfazer(`Cliente arquivado: ${cli.nome}`, antes);
+}
+function arquivarCard(c, extra){
+  const antes = [['cards', c.id, copia(db.cards[c.id] || c)]];
+  mudar('cards', c.id, Object.assign({}, c, extra || {}, { arq: true, arqEm: Date.now(), arqPor: cfg.nome, arqCliente: false }));
+  avisarDesfazer(`Arquivado: ${nomeCli(c)} · ${NOME_ETAPA[c.etapa] || ''}`, antes);
+}
+
+// ================= quadro =================
+let filtro = '', motivoAberto = null;
+// completo: cartões com tudo · compacto: só o cliente e a etapa atual (clique abre o cartão inteiro)
+let modoCards = ler('obras-modo-cartoes', 'compacto'); // padrão: compacto
+const expandidos = new Set();
+function aplicarModo(){
+  document.getElementById('quadro').classList.toggle('compacto', modoCards === 'compacto');
+  document.querySelectorAll('#modoCards button').forEach(b => b.classList.toggle('on', b.dataset.k === modoCards));
+}
+document.querySelectorAll('#modoCards button').forEach(b => b.onclick = () => { modoCards = b.dataset.k; gravar('obras-modo-cartoes', modoCards); expandidos.clear(); aplicarModo(); desenhar(); });
+const ROTULO_ST = { agu: 'Aguardando orçamento', orc: 'Orçamento enviado', fech: 'Fechado', nao: 'Não fechou' };
+const daEtapa = e => ativos().filter(c => c.etapa === e).sort((a, b) => a.ordem - b.ordem);
 
 function desenhar(){
   const q = document.getElementById('quadro');
@@ -286,71 +811,139 @@ function desenhar(){
     const lista = daEtapa(id);
     const col = document.createElement('section');
     col.className = 'col'; col.dataset.etapa = id; col.style.setProperty('--i', i);
-    col.innerHTML = `<h2>${nome}<span>${lista.length || ''}</span></h2><div class="cards"></div>
+    col.innerHTML = `<h2>${iconeEtapa(id)}${nome}<span>${lista.length || ''}</span></h2><div class="cards"></div>
       <div class="add"><button class="addBtn" type="button"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>Adicionar cliente</button></div>`;
     const box = col.querySelector('.cards');
-    if (!lista.length) box.innerHTML = '<div class="vazio">Nenhum cliente</div>';
+    if (!lista.length) box.innerHTML = '<div class="vazio">Arraste um cliente da lista</div>';
     for (const c of lista) box.append(cartao(c));
     ligarColuna(col);
     q.append(col);
   });
   q.scrollLeft = rolagem;
+  aplicarModo();
   ajustarFileiras();
   q.querySelectorAll('.cards').forEach((c, i) => c.scrollTop = rolCols[i] || 0);
-  const nomes = [...new Set(Object.values(cards).map(c => c.cliente))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  document.getElementById('clientes').innerHTML = nomes.map(n => `<option></option>`).join('');
-  [...document.getElementById('clientes').children].forEach((o, i) => o.value = nomes[i]);
   aplicarFiltro();
 }
 
-// escolhe entre duas fileiras (cabe tudo) e uma fileira (alguma coluna passou da meia altura):
-// testa direto no layout de duas fileiras, no mesmo quadro de tela, sem piscar
+// poucos clientes: duas fileiras de 6; alguma coluna passou da meia altura: uma fileira com rolagem lateral
 function ajustarFileiras(){
   const q = document.getElementById('quadro');
   if (!q.querySelector('.col')) return;
   q.classList.add('duas');
-  const transborda = [...q.querySelectorAll('.cards')].some(b => b.scrollHeight > b.clientHeight + 1);
-  if (transborda) q.classList.remove('duas');
+  if ([...q.querySelectorAll('.cards')].some(b => b.scrollHeight > b.clientHeight + 1)) q.classList.remove('duas');
 }
 addEventListener('resize', () => ajustarFileiras());
 
+// sequência: Aguardando → Enviado → Fechado (ou Não fechou). Só uma fica ativa; as anteriores ficam discretas, com ✓.
+// Cada etapa guarda a data em que foi marcada, e o relatório conta por essas datas.
+const NIVEL = { agu: 0, orc: 1, fech: 2, nao: 2 };
+function statusDe(c){ return c.status || (c.nao ? 'nao' : c.fech ? 'fech' : c.orc ? 'orc' : c.agu ? 'agu' : null); }
+function comStatus(n, st){ for (const [m] of MARCAS) n[m] = m === st; n.status = st; return n; }
+function marcar(c, m){
+  const atual = statusDe(c), n = Object.assign({}, c);
+  if (atual === m) {                                  // clicar na ativa desfaz e volta para a anterior marcada
+    n[m + 'Em'] = null; n[m + 'Por'] = null;
+    const anterior = MARCAS.map(x => x[0]).filter(x => NIVEL[x] < NIVEL[m] && n[x + 'Em']).pop() || null;
+    comStatus(n, anterior);
+  } else {
+    for (const [x] of MARCAS) if (NIVEL[x] >= NIVEL[m] && x !== m) { n[x + 'Em'] = null; n[x + 'Por'] = null; } // depois desta (e a alternativa) somem
+    n[m + 'Em'] = Date.now(); n[m + 'Por'] = cfg.nome;
+    comStatus(n, m);
+  }
+  if (n.status !== 'nao') { n.motivo = null; n.motivoTxt = null; }
+  motivoAberto = n.status === 'nao' && atual !== 'nao' ? c.id : null;
+  mudar('cards', c.id, n);
+}
+
 function cartao(c){
   const el = document.createElement('div');
-  el.className = 'card' + (c.fech ? ' fech' : '');
-  el.draggable = true; el.dataset.id = c.id; el.dataset.cliente = c.cliente.toLowerCase();
-  el.innerHTML = `<div class="nome" title="Dois cliques para editar · clique para destacar o cliente"></div>
-    <div class="marcas">
-      <button class="marca${c.agu ? ' on' : ''}" data-m="agu" type="button">${c.agu ? ICO_OK : '<span class="vazioIco"></span>'}Aguardando orçamento</button>
-      <button class="marca${c.orc ? ' on' : ''}" data-m="orc" type="button">${c.orc ? ICO_OK : '<span class="vazioIco"></span>'}Orçamento enviado</button>
-      <button class="marca${c.fech ? ' on' : ''}" data-m="fech" type="button">${c.fech ? ICO_OK : '<span class="vazioIco"></span>'}Fechado</button>
-    </div>
-    ${c.em ? `<div class="rodapeCard">${c.por ? `<span></span><span>·</span>` : ''}<span>${hora(c.em)}</span></div>` : ''}
-    <button class="del" type="button" title="Excluir" aria-label="Excluir">${ICO_X}</button>`;
-  el.querySelector('.nome').textContent = c.cliente;
-  if (c.por) el.querySelector('.rodapeCard span').textContent = c.por;
-  el.querySelectorAll('.marca').forEach(b => b.onclick = () => mudar(c.id, Object.assign({}, c, { [b.dataset.m]: !c[b.dataset.m] })));
-  // clique no nome destaca o cliente em todas as colunas
-  const nome = el.querySelector('.nome');
-  nome.onclick = () => { if (nome.contentEditable === 'true') return; const b = document.getElementById('busca'); b.value = b.value === c.cliente ? '' : c.cliente; filtro = b.value.toLowerCase(); aplicarFiltro(); };
-  nome.ondblclick = () => { nome.contentEditable = true; el.draggable = false; nome.focus(); document.getSelection().selectAllChildren(nome); };
-  const fim = ok => {
-    if (nome.contentEditable !== 'true') return;
-    nome.contentEditable = false; el.draggable = true;
-    const v = nome.textContent.trim();
-    if (ok && v && v !== c.cliente) mudar(c.id, Object.assign({}, c, { cliente: v })); else nome.textContent = c.cliente;
+  const nome = nomeCli(c);
+  el.className = 'card' + (c.fech ? ' fech' : '') + (c.nao ? ' nao' : '') + (expandidos.has(c.id) ? ' expandido' : '');
+  el.draggable = true; el.dataset.id = c.id; el.dataset.cliente = nome.toLowerCase();
+  const st = statusDe(c);
+  el.innerHTML = `<div class="linhaNome"><div class="nome" title="Clique para destacar este cliente em todas as colunas"></div>
+      <span class="stMini${st === 'agu' ? ' agu' : ''}${st ? '' : ' sem'}" style="--c:${st ? COR[st] : 'var(--mut)'}" title="${st ? MARCAS.find(x => x[0] === st)[1] : 'Sem marcação'}">${st ? ROTULO_ST[st] : 'Sem marcação'}</span></div>
+    <div class="marcas">${MARCAS.map(([m, rot]) => { const st = statusDe(c), passou = st !== m && c[m + 'Em'] && NIVEL[m] < NIVEL[st];
+      return `<button class="marca${st === m ? ' on' : ''}${passou ? ' passou' : ''}" data-m="${m}" type="button">${st === m || passou ? ICO_OK : '<span class="vazioIco"></span>'}${rot}</button>`; }).join('')}</div>
+    <div class="slotMotivo"></div>
+    <div class="rodapeCard"><button class="valor" type="button" title="Valor do orçamento"></button><span class="quem"></span></div>
+    <div class="acoesCard"><button class="recolher" type="button" title="Recolher" aria-label="Recolher cartão"><svg viewBox="0 0 12 12"><path d="M3 7.5l3-3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="arq" type="button" title="Arquivar" aria-label="Arquivar">${ICO_ARQ}</button>
+      <button class="del" type="button" title="Excluir" aria-label="Excluir">${ICO_X}</button></div>`;
+  el.querySelector('.nome').textContent = nome;
+  if (modoCards === 'compacto') el.title = `${nome} · ${st ? MARCAS.find(x => x[0] === st)[1] : 'Sem marcação'}${c.valor != null && st !== 'agu' && st ? ' · ' + brl(c.valor) : ''}`;
+  el.querySelector('.quem').textContent = c.em ? `${c.por ? c.por + ' · ' : ''}${hora(c.em)}` : '';
+  // data e autor de cada marcação, ao passar o mouse
+  el.querySelectorAll('.marca').forEach(b => {
+    const m = b.dataset.m;
+    b.title = c[m + 'Em'] ? `${MARCAS.find(x => x[0] === m)[1]} em ${hora(c[m + 'Em'])}${c[m + 'Por'] ? ' por ' + c[m + 'Por'] : ''}` : 'Clique para marcar (grava a data)';
+    b.onclick = () => marcar(c, m);
+  });
+  // motivo de não ter fechado
+  const slot = el.querySelector('.slotMotivo');
+  if (c.nao && motivoAberto === c.id) slot.append(painelMotivo(c));
+  else if (c.nao) {
+    const t = document.createElement('div'); t.className = 'motivoTxt';
+    t.textContent = c.motivo ? (c.motivo === 'outro' && c.motivoTxt ? c.motivoTxt : MOTIVOS[c.motivo]) + ' · alterar' : 'Informar o motivo';
+    t.onclick = () => { motivoAberto = c.id; desenhar(); };
+    slot.append(t);
+  }
+  // valor: só aparece depois que o orçamento foi enviado (enviado, fechado ou não fechou)
+  const val = el.querySelector('.valor');
+  if (!['orc', 'fech', 'nao'].includes(statusDe(c))) val.remove();
+  val.textContent = c.valor != null ? brl(c.valor) : 'R$ —'; val.classList.toggle('vazio', c.valor == null);
+  val.onclick = () => {
+    const inp = document.createElement('input'); inp.className = 'valorCampo'; inp.inputMode = 'decimal';
+    inp.placeholder = 'Ex.: 5.000,00'; inp.value = c.valor != null ? c.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
+    val.replaceWith(inp); el.draggable = false; inp.focus(); inp.select();
+    let feito = false;
+    const fim = ok => { if (feito) return; feito = true; const v = lerValor(inp.value);
+      if (ok && v !== c.valor) mudar('cards', c.id, Object.assign({}, c, { valor: v })); else desenhar(); };
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fim(true); } if (e.key === 'Escape') fim(false); };
+    inp.onblur = () => fim(true);
   };
-  nome.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); fim(true); } if (e.key === 'Escape') fim(false); };
-  nome.onblur = () => fim(true);
-  // excluir em dois cliques
+  el.querySelector('.nome').onclick = () => { if (modoCards !== 'compacto') destacar(nome); }; // no compacto, o clique abre/fecha o cartão
+  el.querySelector('.arq').onclick = () => arquivarCard(c);
   const del = el.querySelector('.del'); let espera;
   del.onclick = () => {
-    if (del.classList.contains('confirmar')) { clearTimeout(espera); mudar(c.id, null); return; }
+    if (del.classList.contains('confirmar')) { clearTimeout(espera); mudar('cards', c.id, null); return; }
     del.classList.add('confirmar'); del.textContent = 'Excluir?';
     espera = setTimeout(() => { del.classList.remove('confirmar'); del.innerHTML = ICO_X; }, 2500);
   };
-  el.addEventListener('dragstart', e => { arrastandoId = c.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', c.id); setTimeout(() => el.classList.add('arrastando')); });
-  el.addEventListener('dragend', () => { arrastandoId = null; el.classList.remove('arrastando'); limparAlvos(); });
+  // modo compacto: clique no cartão (fora do nome e dos botões) abre/fecha ele inteiro
+  el.addEventListener('click', e => {
+    if (modoCards !== 'compacto' || e.target.closest('button:not(.recolher), input, .motivo, .valorCampo')) return;
+    expandidos.has(c.id) ? expandidos.delete(c.id) : expandidos.add(c.id);
+    el.classList.toggle('expandido'); ajustarFileiras();
+  });
+  el.addEventListener('dragstart', e => { arrastando = { tipo: 'card', id: c.id }; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', c.id); setTimeout(() => el.classList.add('arrastando')); });
+  el.addEventListener('dragend', () => { arrastando = null; el.classList.remove('arrastando'); limparAlvos(); });
   return el;
+}
+
+function painelMotivo(c){
+  const p = document.createElement('div'); p.className = 'motivo';
+  p.innerHTML = `<div class="tit">Por que não fechou?</div>
+    ${Object.entries(MOTIVOS).map(([k, t]) => `<label><input type="radio" name="m${c.id}" value="${k}"${c.motivo === k ? ' checked' : ''}>${t}</label>`).join('')}
+    <input class="txt" maxlength="120" placeholder="Detalhe (opcional)">
+    <div class="bts"><button class="bt" data-a="item" type="button">Arquivar este item</button>
+      <button class="bt" data-a="cliente" type="button">Arquivar o cliente inteiro</button>
+      <button class="bt forte" data-a="ok" type="button">Pronto</button></div>`;
+  const txt = p.querySelector('.txt'); txt.value = c.motivoTxt || '';
+  const salvar = extra => {
+    const r = p.querySelector('input[type=radio]:checked');
+    return Object.assign({}, c, { motivo: r ? r.value : c.motivo || null, motivoTxt: txt.value.trim() || null }, extra || {});
+  };
+  p.querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => { const n = salvar(); db.cards[c.id] = n; c = n; mudar('cards', c.id, n, true); });
+  p.querySelectorAll('.bt').forEach(b => b.onclick = () => {
+    motivoAberto = null;
+    if (b.dataset.a === 'item') arquivarCard(c, salvar());
+    else if (b.dataset.a === 'cliente') { const antes = [['cards', c.id, copia(db.cards[c.id] || c)]]; mudar('cards', c.id, salvar(), true); arquivarCliente(c.clienteId, antes); }
+    else mudar('cards', c.id, salvar());
+  });
+  p.addEventListener('pointerdown', e => e.stopPropagation());
+  return p;
 }
 
 function limparAlvos(){ document.querySelectorAll('.marcador').forEach(m => m.remove()); document.querySelectorAll('.col.alvo').forEach(c => c.classList.remove('alvo')); }
@@ -359,11 +952,18 @@ function posicao(box, y){
   for (let i = 0; i < cs.length; i++) { const r = cs[i].getBoundingClientRect(); if (y < r.top + r.height / 2) return { i, antes: cs[i] }; }
   return { i: cs.length, antes: null };
 }
-
+function novoCardEm(cli, etapa, i){
+  const existe = daEtapa(etapa).find(c => c.clienteId === cli.id);
+  if (existe) { desenhar(); destacar(cli.nome); return; } // o cliente já está nesta coluna: só destaca
+  const lista = daEtapa(etapa), a = lista[i - 1], b = lista[i];
+  const ordem = a && b ? (a.ordem + b.ordem) / 2 : a ? a.ordem + 1 : b ? b.ordem - 1 : 0;
+  const id = uid();
+  mudar('cards', id, { id, clienteId: cli.id, cliente: cli.nome, etapa, ordem, valor: null });
+}
 function ligarColuna(col){
   const etapa = col.dataset.etapa, box = col.querySelector('.cards');
   col.addEventListener('dragover', e => {
-    if (!arrastandoId) return; e.preventDefault();
+    if (!arrastando) return; e.preventDefault();
     document.querySelectorAll('.col.alvo').forEach(x => x !== col && x.classList.remove('alvo')); col.classList.add('alvo');
     const { antes } = posicao(box, e.clientY), atual = box.querySelector('.marcador');
     if (atual && atual.nextElementSibling === antes) return;
@@ -372,32 +972,45 @@ function ligarColuna(col){
   });
   col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) { col.classList.remove('alvo'); col.querySelector('.marcador')?.remove(); } });
   col.addEventListener('drop', e => {
-    e.preventDefault(); const c = cards[arrastandoId]; if (!c) return;
-    const { i } = posicao(box, e.clientY);
-    const lista = daEtapa(etapa).filter(x => x.id !== c.id);
-    // ordem entre os vizinhos: só o cartão movido muda (bom para duas pessoas mexendo juntas)
-    const a = lista[i - 1], b = lista[i];
+    e.preventDefault(); if (!arrastando) return;
+    const { i } = posicao(box, e.clientY); const arr = arrastando; limparAlvos();
+    if (arr.tipo === 'cliente') { const cli = db.clientes[arr.id]; if (cli) novoCardEm(cli, etapa, i); return; }
+    const c = db.cards[arr.id]; if (!c) return;
+    const lista = daEtapa(etapa).filter(x => x.id !== c.id), a = lista[i - 1], b = lista[i];
     const ordem = a && b ? (a.ordem + b.ordem) / 2 : a ? a.ordem + 1 : b ? b.ordem - 1 : 0;
-    limparAlvos(); mudar(c.id, Object.assign({}, c, { etapa, ordem }));
+    mudar('cards', c.id, Object.assign({}, c, { etapa, ordem }));
   });
-  // adicionar cliente nesta coluna
   const add = col.querySelector('.add');
   add.querySelector('.addBtn').onclick = () => {
-    add.innerHTML = '<input class="addCampo" maxlength="80" placeholder="Nome do cliente… (Enter)" list="clientes">';
-    const inp = add.querySelector('input'); inp.focus();
-    let feito = false; // Enter e "sair do campo" não podem salvar duas vezes
-    const salvar = () => {
-      if (feito) return; feito = true;
-      const v = inp.value.trim();
-      if (v) { const l = daEtapa(etapa); const id = uid(); mudar(id, { id, cliente: v, etapa, ordem: l.length ? l[l.length - 1].ordem + 1 : 0, agu: false, orc: false, fech: false }); }
-      else desenhar();
+    // só escolhe um cliente já cadastrado em "Clientes em obra" (o cadastro é feito lá)
+    add.innerHTML = '<input class="addCampo" maxlength="80" placeholder="Escolha um cliente da lista…" autocomplete="off">';
+    const inp = add.querySelector('input');
+    let feito = false;
+    const escolher = nome => {
+      if (feito) return;
+      const cli = Object.values(db.clientes).find(x => !x.arq && x.nome.toLowerCase() === nome.trim().toLowerCase());
+      if (!cli) return;
+      feito = true; novoCardEm(cli, etapa, daEtapa(etapa).length);
     };
-    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); salvar(); setTimeout(() => col.querySelector('.addBtn')?.click()); } if (e.key === 'Escape') { feito = true; desenhar(); } };
-    inp.onblur = () => setTimeout(() => { if (!feito && inp.isConnected && document.activeElement !== inp) salvar(); }, 100);
+    ligarSugestoes(inp, escolher, { sempre: true, soDaLista: true, etapa,
+      vazio: q => q ? `"${q}" não está em Clientes em obra. Cadastre lá primeiro.` : 'Nenhum cliente em obra. Cadastre na lista à esquerda.' });
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); escolher(inp.value); } if (e.key === 'Escape') { feito = true; fecharSugestoes(); desenhar(); } };
+    inp.onblur = () => setTimeout(() => { if (!feito && inp.isConnected && document.activeElement !== inp) { feito = true; desenhar(); } }, 150);
+    inp.focus();
   };
 }
 
+const buscaTopo = document.getElementById('buscaTopo'), buscaInp = document.getElementById('busca');
+function abrirBusca(sim){ buscaTopo.classList.toggle('aberta', sim); if (sim) setTimeout(() => buscaInp.focus(), 60); }
+document.getElementById('lupa').onclick = () => { if (buscaTopo.classList.contains('aberta') && !buscaInp.value) { abrirBusca(false); fecharSugestoes(); } else abrirBusca(true); };
+document.getElementById('buscaSeta').onmousedown = e => { e.preventDefault(); buscaInp.focus(); sugBox.hidden || (sugAtual && sugAtual.inp !== buscaInp) ? mostrarSugestoes(buscaInp, escolherBusca, true) : fecharSugestoes(); };
+const escolherBusca = nome => { buscaInp.value = nome; filtro = nome.toLowerCase(); aplicarFiltro(); };
+ligarSugestoes(buscaInp, escolherBusca);
+buscaInp.addEventListener('blur', () => setTimeout(() => { if (!buscaInp.value && document.activeElement !== buscaInp) abrirBusca(false); }, 160));
+buscaInp.addEventListener('keydown', e => { if (e.key === 'Escape') { buscaInp.value = ''; filtro = ''; aplicarFiltro(); buscaInp.blur(); abrirBusca(false); } });
+function destacar(nome){ const b = buscaInp; b.value = b.value.toLowerCase() === nome.toLowerCase() ? '' : nome; filtro = b.value.trim().toLowerCase(); abrirBusca(!!b.value); aplicarFiltro(); }
 function aplicarFiltro(){
+  document.querySelectorAll('.cli').forEach(el => el.classList.toggle('on', !!filtro && el.dataset.nome === filtro));
   document.querySelectorAll('.card').forEach(el => {
     el.classList.toggle('destaque', !!filtro && el.dataset.cliente === filtro);
     el.classList.toggle('apagado', !!filtro && !el.dataset.cliente.includes(filtro));
@@ -405,7 +1018,288 @@ function aplicarFiltro(){
 }
 document.getElementById('busca').addEventListener('input', e => { filtro = e.target.value.trim().toLowerCase(); aplicarFiltro(); });
 
-// ---------------- configurações ----------------
+// ================= relatórios =================
+// cada marcação guarda a data: o relatório conta pelo momento em que foi marcada (arquivados entram também)
+const hojeD = new Date();
+let rel = { modo: 'mes', ano: hojeD.getFullYear(), mes: hojeD.getMonth(), foco: null,
+  de: { ano: hojeD.getFullYear(), mes: Math.max(0, hojeD.getMonth() - 2) }, ate: { ano: hojeD.getFullYear(), mes: hojeD.getMonth() } };
+const KEY_BLOCOS = 'obras-relatorio-blocos';
+let blocosFechados = ler(KEY_BLOCOS, { etapas: true, lista: true }); // minimizados por padrão: Por etapa e a lista completa
+const chaveMes = (a, m) => a * 12 + m;
+const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function noPeriodo(t, modo = rel.modo, ano = rel.ano, mes = rel.mes){
+  if (!t) return false; if (modo === 'tudo') return true;
+  const d = new Date(t);
+  if (modo === 'intervalo') { const k = chaveMes(d.getFullYear(), d.getMonth()); return k >= chaveMes(rel.de.ano, rel.de.mes) && k <= chaveMes(rel.ate.ano, rel.ate.mes); }
+  return d.getFullYear() === ano && (modo === 'ano' || d.getMonth() === mes);
+}
+function eventos(filtroPeriodo = true){
+  const ev = [];
+  for (const c of Object.values(db.cards)) for (const [m] of MARCAS)
+    if (c[m + 'Em'] && (!filtroPeriodo || noPeriodo(c[m + 'Em']))) ev.push({ m, em: c[m + 'Em'], por: c[m + 'Por'], c });
+  return ev.sort((a, b) => b.em - a.em);
+}
+const soma = l => l.reduce((s, e) => s + (e.c.valor || 0), 0);
+function tituloPeriodo(){
+  if (rel.modo === 'tudo') return 'Desde o início';
+  if (rel.modo === 'intervalo') return 'Período escolhido';
+  if (rel.modo === 'ano') return String(rel.ano);
+  const t = new Date(rel.ano, rel.mes, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function mover(d){
+  if (rel.modo === 'ano') rel.ano += d;
+  else { rel.mes += d; if (rel.mes < 0) { rel.mes = 11; rel.ano--; } if (rel.mes > 11) { rel.mes = 0; rel.ano++; } }
+  rel.foco = null; desenharRelatorio();
+}
+
+function desenharRelatorio(){
+  const v = document.getElementById('vRel'); const rol = v.scrollTop;
+  const ev = eventos(), por = m => ev.filter(e => e.m === m);
+  const env = por('orc'), fech = por('fech'), nao = por('nao'), agu = por('agu');
+  const respondidos = fech.length + nao.length;
+  const taxa = respondidos ? Math.round(fech.length / respondidos * 100) : null;
+  const ticket = fech.length ? soma(fech) / fech.length : null;
+  // tempo médio entre "enviado" e "fechado" (só quem tem as duas datas)
+  const ciclos = fech.map(e => e.c).filter(c => c.orcEm && c.fechEm >= c.orcEm).map(c => (c.fechEm - c.orcEm) / 864e5);
+  const cicloMedio = ciclos.length ? ciclos.reduce((a, b) => a + b, 0) / ciclos.length : null;
+  // em aberto agora: enviado, sem resposta, não arquivado (independe do período)
+  const abertos = ativos().filter(c => c.orc && !c.fech && !c.nao);
+  const ultimaAtt = Math.max(0, ...Object.values(db.cards).map(c => c.em || 0));
+
+  const valMes = o => `${o.ano}-${String(o.mes + 1).padStart(2, '0')}`;
+  v.innerHTML = `
+  <div class="filtros">
+    <div class="seg" id="modoRel">${[['mes','Mês'],['ano','Ano'],['tudo','Tudo'],['intervalo','Período']].map(([k, t]) => `<button type="button" data-k="${k}" class="${rel.modo === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    ${rel.modo === 'intervalo'
+      ? `<div class="intervalo"><label>De <input type="month" id="relDe" value="${valMes(rel.de)}"></label><label>até <input type="month" id="relAte" value="${valMes(rel.ate)}"></label></div>`
+      : `<div class="periodo"><button type="button" id="ant" aria-label="Período anterior"${rel.modo === 'tudo' ? ' disabled' : ''}>‹</button><strong>${tituloPeriodo()}</strong><button type="button" id="prox" aria-label="Próximo período"${rel.modo === 'tudo' ? ' disabled' : ''}>›</button></div>`}
+    ${rel.foco ? `<span class="filtroAtivo">Mostrando: <b>${rel.foco.rot}</b><button type="button" id="limparFoco" aria-label="Limpar filtro">×</button></span>` : ''}
+    <span style="margin-left:auto;font-size:12px;color:var(--mut)">${ultimaAtt ? 'Última alteração no quadro: ' + hora(ultimaAtt) : ''}</span>
+  </div>
+  <div class="kpis">
+    ${kpi('Orçamentos enviados', env.length, brl(soma(env)), 'var(--orc)')}
+    ${kpi('Fechados', fech.length, brl(soma(fech)), 'var(--fech)')}
+    ${kpi('Não fechados', nao.length, brl(soma(nao)), 'var(--nao)')}
+    ${kpi('Taxa de fechamento', taxa == null ? '—' : taxa + '%', respondidos ? `${fech.length} de ${respondidos} respondidos` : 'sem respostas no período', 'var(--txt)')}
+    ${kpi('Ticket médio fechado', ticket == null ? '—' : brlCurto(ticket), cicloMedio == null ? 'tempo até fechar: —' : cicloMedio < 1 ? 'fecha no mesmo dia do envio, em média' : `fecha em ${cicloMedio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} dias após o envio, em média`, 'var(--sub)')}
+  </div>
+  <div class="grade">
+    ${bloco('funil', 's12', 'Funil do período', 'clique numa etapa para ver os itens', '<div class="funil" id="funil"></div>')}
+    ${bloco('evolucao', 's12', 'Evolução', rel.modo === 'tudo' ? 'por ano · clique num ano' : 'mês a mês · clique num mês',
+      '<div class="legendaG"><span style="--c:var(--orc)"><b></b>Enviados (R$)</span><span style="--c:var(--fech)"><b></b>Fechados (R$)</span><span style="--c:var(--nao)"><b></b>Não fechados (R$)</span></div><div class="grafico" id="grafico"></div>')}
+    ${bloco('motivos', 's7', 'Por que não fecharam', '', '<div id="motivos"></div>')}
+    ${bloco('aberto', 's5', 'Em aberto agora', 'enviados sem resposta',
+      `<div style="display:flex;align-items:baseline;gap:10px"><span style="font:700 22px var(--font-d)">${abertos.length}</span><span style="color:var(--sub)">${brl(abertos.reduce((s, c) => s + (c.valor || 0), 0))} aguardando decisão do cliente</span></div>`)}
+    ${bloco('etapas', 's12', 'Por etapa', 'clique numa etapa para filtrar', '<div class="rolar"><table class="tab" id="tabEtapas"></table></div>')}
+    ${bloco('lista', 's12', rel.foco ? `Itens: ${rel.foco.rot}` : 'Tudo o que aconteceu no período', '', '<div class="rolar"><table class="tab" id="tabLista"></table></div>')}
+  </div>`;
+  v.querySelectorAll('.blocoTopo').forEach(t => t.onclick = () => {
+    const k = t.dataset.b; blocosFechados[k] = !blocosFechados[k]; gravar(KEY_BLOCOS, blocosFechados);
+    t.closest('.painelR').classList.toggle('fechado', !!blocosFechados[k]); t.setAttribute('aria-expanded', !blocosFechados[k]);
+    if (k === 'evolucao' && !blocosFechados[k]) desenharGrafico(v.querySelector('#grafico'));
+  });
+  const de = v.querySelector('#relDe'), ate = v.querySelector('#relAte');
+  const lerMes = s => { const [a, m] = s.split('-').map(Number); return { ano: a, mes: m - 1 }; };
+  if (de) de.onchange = () => { if (!de.value) return; rel.de = lerMes(de.value); if (chaveMes(rel.de.ano, rel.de.mes) > chaveMes(rel.ate.ano, rel.ate.mes)) rel.ate = { ...rel.de }; rel.foco = null; desenharRelatorio(); };
+  if (ate) ate.onchange = () => { if (!ate.value) return; rel.ate = lerMes(ate.value); if (chaveMes(rel.ate.ano, rel.ate.mes) < chaveMes(rel.de.ano, rel.de.mes)) rel.de = { ...rel.ate }; rel.foco = null; desenharRelatorio(); };
+  v.querySelectorAll('#modoRel button').forEach(b => b.onclick = () => { rel.modo = b.dataset.k; rel.foco = null; desenharRelatorio(); });
+  v.querySelector('#ant')?.addEventListener('click', () => mover(-1)); v.querySelector('#prox')?.addEventListener('click', () => mover(1));
+  v.querySelector('#limparFoco')?.addEventListener('click', () => { rel.foco = null; desenharRelatorio(); });
+
+  // funil: quantos clientes/itens passaram por cada fase no período
+  const fases = [['agu', 'Aguardando', agu], ['orc', 'Enviados', env], ['fech', 'Fechados', fech], ['nao', 'Não fechados', nao]];
+  const maxF = Math.max(1, ...fases.map(f => f[2].length));
+  const fun = v.querySelector('#funil');
+  fases.forEach(([m, rot, l], i) => {
+    if (i === 2) { const d = document.createElement('div'); d.className = 'divF'; d.innerHTML = '<span></span><span>resposta do cliente</span><span></span>'; fun.append(d); }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'etapaF' + (rel.foco && rel.foco.m === m ? ' on' : '');
+    const pct = l.length / maxF * 100;
+    b.innerHTML = `<span class="nF">${rot}</span><span class="trilho"><span class="barraF${pct < 18 ? ' fora' : ''}" style="--c:${COR[m]};width:${pct}%"><span>${l.length}</span></span></span><span class="vF">${m === 'agu' ? '<span style="color:var(--mut)">sem valor ainda</span>' : `<b>${brl(soma(l))}</b>`}</span>`;
+    b.onclick = () => { rel.foco = rel.foco && rel.foco.m === m ? null : { m, rot }; desenharRelatorio(); };
+    fun.append(b);
+  });
+
+  // motivos
+  const mot = v.querySelector('#motivos');
+  if (!nao.length) mot.innerHTML = '<div class="semDados">Nenhum "não fechou" no período.</div>';
+  else {
+    const t = document.createElement('table'); t.className = 'tab';
+    const cont = {}; for (const e of nao) { const k = e.c.motivo || 'sem'; cont[k] = cont[k] || []; cont[k].push(e); }
+    t.innerHTML = '<tr><th>Motivo</th><th class="n">Qtd</th><th class="n">Valor</th><th></th></tr>';
+    for (const [k, l] of Object.entries(cont).sort((a, b) => b[1].length - a[1].length)) {
+      const tr = document.createElement('tr'); tr.className = 'click';
+      tr.innerHTML = `<td></td><td class="n">${l.length}</td><td class="n">${brl(soma(l))}</td><td style="width:30%"><div class="barrinha" style="--c:var(--nao)"><i style="width:${l.length / nao.length * 100}%"></i></div></td>`;
+      tr.firstChild.textContent = MOTIVOS[k] || 'Sem motivo informado';
+      tr.onclick = () => { rel.foco = { m: 'nao', motivo: k, rot: tr.firstChild.textContent }; desenharRelatorio(); };
+      t.append(tr);
+    }
+    mot.append(t);
+  }
+
+  if (!blocosFechados.evolucao) desenharGrafico(v.querySelector('#grafico'));
+
+  // por etapa
+  const te = v.querySelector('#tabEtapas');
+  te.innerHTML = '<tr><th>Etapa</th><th class="n">Enviados</th><th class="n">Fechados</th><th class="n">Não</th><th class="n">Taxa</th></tr>';
+  for (const [id, nome] of ETAPAS) {
+    const f = l => l.filter(e => e.c.etapa === id);
+    const e1 = f(env), e2 = f(fech), e3 = f(nao);
+    if (!e1.length && !e2.length && !e3.length) continue;
+    const tr = document.createElement('tr'); tr.className = 'click' + (rel.foco && rel.foco.etapa === id ? ' on' : '');
+    const tx = e2.length + e3.length ? Math.round(e2.length / (e2.length + e3.length) * 100) + '%' : '—';
+    tr.innerHTML = `<td><span class="comIco">${iconeEtapa(id)}${nome}</span></td><td class="n">${e1.length} · ${brlCurto(soma(e1))}</td><td class="n">${e2.length} · ${brlCurto(soma(e2))}</td><td class="n">${e3.length}</td><td class="n">${tx}</td>`;
+    tr.onclick = () => { rel.foco = rel.foco && rel.foco.etapa === id ? null : { etapa: id, rot: nome }; desenharRelatorio(); };
+    te.append(tr);
+  }
+  if (te.rows.length === 1) te.innerHTML += '<tr><td colspan="5" class="semDados">Nada marcado no período.</td></tr>';
+
+  // lista detalhada (respeita o filtro escolhido no funil, motivo, etapa ou mês)
+  let lista = ev;
+  if (rel.foco) {
+    if (rel.foco.m) lista = lista.filter(e => e.m === rel.foco.m && (!rel.foco.motivo || (e.c.motivo || 'sem') === rel.foco.motivo));
+    if (rel.foco.etapa) lista = lista.filter(e => e.c.etapa === rel.foco.etapa);
+  }
+  const tl = v.querySelector('#tabLista');
+  tl.innerHTML = '<tr><th>Data</th><th>Marcação</th><th>Cliente</th><th>Etapa</th><th class="n">Valor</th><th>Por</th><th></th></tr>';
+  for (const e of lista.slice(0, 300)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${hora(e.em)}</td><td><span class="chip${e.m === 'agu' ? ' agu' : ''}" style="--c:${COR[e.m]}">${MARCAS.find(x => x[0] === e.m)[1]}</span></td><td></td><td>${NOME_ETAPA[e.c.etapa] || ''}</td><td class="n">${e.c.valor != null ? brl(e.c.valor) : '—'}</td><td></td><td style="color:var(--mut)" title="${e.c.arq ? 'Arquivado' : ''}">${e.c.arq ? '<span class="icoArq">' + ICO_ARQ + '</span>' : ''}</td>`;
+    tr.children[2].textContent = nomeCli(e.c); tr.children[5].textContent = e.por || '';
+    tl.append(tr);
+  }
+  if (!lista.length) tl.innerHTML += '<tr><td colspan="7" class="semDados">Nada no período escolhido.</td></tr>';
+  v.scrollTop = rol;
+}
+// bloco que pode ser minimizado (a escolha fica salva neste computador)
+const bloco = (k, larg, titulo, sub, corpo) => `<section class="painelR ${larg}${blocosFechados[k] ? ' fechado' : ''}">
+  <button class="blocoTopo" type="button" data-b="${k}" aria-expanded="${!blocosFechados[k]}"><h3>${titulo} ${sub ? `<small>${sub}</small>` : ''}</h3>
+  <svg viewBox="0 0 12 12"><path d="M3 4.5l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <div class="blocoCorpo">${corpo}</div></section>`;
+const kpi = (rot, v, d, c) => `<div class="kpi" style="--c:${c}"><span class="r">${rot}</span><span class="v">${v}</span><span class="d">${d}</span></div>`;
+
+// barras agrupadas por mês (ou por ano no modo "tudo"); clique num mês leva para ele
+function desenharGrafico(box){
+  const todos = eventos(false);
+  let grupos;
+  if (rel.modo === 'tudo') {
+    const anos = [...new Set(todos.map(e => new Date(e.em).getFullYear()))].sort();
+    if (!anos.length) anos.push(new Date().getFullYear());
+    grupos = anos.map(a => ({ rot: String(a), ano: a, mes: null, f: e => new Date(e.em).getFullYear() === a }));
+  } else if (rel.modo === 'intervalo') {
+    grupos = [];
+    for (let k = chaveMes(rel.de.ano, rel.de.mes); k <= chaveMes(rel.ate.ano, rel.ate.mes) && grupos.length < 36; k++) {
+      const a = Math.floor(k / 12), m = k % 12;
+      grupos.push({ rot: MESES[m] + (rel.de.ano !== rel.ate.ano ? '/' + String(a).slice(2) : ''), ano: a, mes: m, f: e => { const d = new Date(e.em); return d.getFullYear() === a && d.getMonth() === m; } });
+    }
+  } else grupos = MESES.map((m, i) => ({ rot: m, ano: rel.ano, mes: i, f: e => { const d = new Date(e.em); return d.getFullYear() === rel.ano && d.getMonth() === i; } }));
+  const series = [['orc', 'var(--orc)', 'Enviados'], ['fech', 'var(--fech)', 'Fechados'], ['nao', 'var(--nao)', 'Não fechados']];
+  const dados = grupos.map(g => series.map(([m]) => { const l = todos.filter(e => e.m === m && g.f(e)); return { n: l.length, v: soma(l) }; }));
+  const max = Math.max(1, ...dados.flat().map(d => d.v));
+  const passo = Math.pow(10, Math.floor(Math.log10(max))); const topo = Math.ceil(max / passo) * passo;
+  const W = Math.max(600, box.clientWidth || 900), H = 240, mE = 64, mB = 26, mT = 10, larg = (W - mE) / grupos.length;
+  const y = v => mT + (H - mT - mB) * (1 - v / topo);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Valores por período">`;
+  for (let k = 0; k <= 4; k++) { const v = topo * k / 4; svg += `<line class="grade-l" x1="${mE}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text class="eixo" x="${mE - 8}" y="${y(v) + 4}" text-anchor="end">${brlCurto(v)}</text>`; }
+  const bw = Math.min(18, (larg - 14) / 3 - 2);
+  grupos.forEach((g, gi) => {
+    const x0 = mE + gi * larg, ativo = rel.modo !== 'tudo' && rel.modo === 'mes' && g.mes === rel.mes;
+    svg += `<g class="mes${ativo ? ' on' : ''}" data-i="${gi}" tabindex="0"><rect class="fundoMes" x="${x0 + 2}" y="${mT}" width="${larg - 4}" height="${H - mT - mB}" rx="8" fill="transparent"/>`;
+    series.forEach(([m, cor], si) => {
+      const d = dados[gi][si], h = Math.max(d.v > 0 ? 3 : 0, (H - mT - mB) - (y(d.v) - mT));
+      const x = x0 + larg / 2 - (3 * bw + 4) / 2 + si * (bw + 2);
+      if (h > 0) svg += `<rect class="b" x="${x}" y="${H - mB - h}" width="${bw}" height="${h}" rx="3" fill="${cor}"/>`;
+    });
+    svg += `<text class="eixo" x="${x0 + larg / 2}" y="${H - 8}" text-anchor="middle">${g.rot}</text></g>`;
+  });
+  svg += '</svg>';
+  box.innerHTML = svg;
+  const dica = document.getElementById('dica');
+  box.querySelectorAll('g.mes').forEach(gEl => {
+    const gi = +gEl.dataset.i, g = grupos[gi];
+    const mostrar = (x, yy) => {
+      dica.hidden = false;
+      dica.innerHTML = `<div class="t">${g.mes != null ? new Date(g.ano, g.mes, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : g.rot}</div>` +
+        series.map(([m, cor, rot], si) => `<div class="l" style="--c:${cor}"><i></i><span>${rot} (${dados[gi][si].n})</span><b>${brl(dados[gi][si].v)}</b></div>`).join('');
+      dica.style.left = Math.min(innerWidth - dica.offsetWidth - 10, x + 14) + 'px'; dica.style.top = (yy + 14) + 'px';
+    };
+    gEl.addEventListener('pointermove', e => mostrar(e.clientX, e.clientY));
+    gEl.addEventListener('focus', () => { const r = gEl.getBoundingClientRect(); mostrar(r.left + r.width / 2, r.top); });
+    gEl.addEventListener('pointerleave', () => dica.hidden = true);
+    gEl.addEventListener('blur', () => dica.hidden = true);
+    gEl.addEventListener('click', () => { dica.hidden = true; if (g.mes != null) { rel.modo = 'mes'; rel.mes = g.mes; rel.ano = g.ano; } else { rel.modo = 'ano'; rel.ano = g.ano; } rel.foco = null; desenharRelatorio(); });
+  });
+}
+
+// ================= arquivados =================
+let buscaArq = '';
+function desenharArquivados(){
+  const v = document.getElementById('vArq'); const rol = v.scrollTop;
+  const arqs = Object.values(db.cards).filter(c => c.arq);
+  const fechadosAtivos = ativos().filter(c => c.fech);
+  v.innerHTML = `<div class="barraArq">
+      <label class="busca"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3" stroke-linecap="round"/></svg><input id="buscaArq" placeholder="Buscar cliente arquivado…"></label>
+      <span style="color:var(--sub);font-size:12.5px">${arqs.length} ${arqs.length === 1 ? 'item arquivado' : 'itens arquivados'} · continuam contando nos relatórios</span>
+      <button class="bt" id="arqFechados" type="button" style="margin-left:auto"${fechadosAtivos.length ? '' : ' disabled'}>Arquivar todos os fechados do quadro (${fechadosAtivos.length})</button>
+    </div><div id="gruposArq" style="display:flex;flex-direction:column;gap:12px"></div>`;
+  const inp = v.querySelector('#buscaArq'); inp.value = buscaArq;
+  inp.oninput = () => { buscaArq = inp.value; desenharGruposArq(); };
+  const bA = v.querySelector('#arqFechados'); let espera;
+  bA.onclick = () => {
+    if (bA.dataset.c) { clearTimeout(espera); const antes = fechadosAtivos.map(c => ['cards', c.id, copia(c)]);
+      for (const c of fechadosAtivos) mudar('cards', c.id, Object.assign({}, c, { arq: true, arqEm: Date.now(), arqPor: cfg.nome, arqCliente: false }), true);
+      desenharTudo(); avisarDesfazer(`${antes.length} fechado${antes.length === 1 ? '' : 's'} arquivado${antes.length === 1 ? '' : 's'}`, antes); return; }
+    bA.dataset.c = 1; bA.textContent = `Confirmar: arquivar ${fechadosAtivos.length}?`;
+    espera = setTimeout(() => desenharArquivados(), 3000);
+  };
+  desenharGruposArq();
+  v.scrollTop = rol;
+}
+function desenharGruposArq(){
+  const box = document.getElementById('gruposArq'); if (!box) return; box.innerHTML = '';
+  const q = buscaArq.trim().toLowerCase();
+  const porCli = {};
+  for (const c of Object.values(db.cards).filter(c => c.arq)) { const k = c.clienteId || c.cliente; (porCli[k] = porCli[k] || []).push(c); }
+  for (const cli of Object.values(db.clientes).filter(c => c.arq)) porCli[cli.id] = porCli[cli.id] || [];
+  const chaves = Object.keys(porCli).filter(k => (db.clientes[k] ? db.clientes[k].nome : k).toLowerCase().includes(q))
+    .sort((a, b) => Math.max(0, ...porCli[b].map(c => c.arqEm || 0), db.clientes[b]?.arqEm || 0) - Math.max(0, ...porCli[a].map(c => c.arqEm || 0), db.clientes[a]?.arqEm || 0));
+  if (!chaves.length) { box.innerHTML = `<div class="semDados">${q ? 'Nenhum arquivado com esse nome.' : 'Nada arquivado ainda. Use o ícone de caixa no cartão, ou "Não fechou" → arquivar.'}</div>`; return; }
+  for (const k of chaves) {
+    const cli = db.clientes[k], g = document.createElement('section'); g.className = 'grupoArq';
+    const nome = cli ? cli.nome : k;
+    g.innerHTML = `<header><span></span><small></small></header><div class="rolar"><table class="tab"></table></div>`;
+    g.querySelector('header span').textContent = nome;
+    g.querySelector('header small').textContent = cli && cli.arq ? `cliente arquivado em ${dia(cli.arqEm)}${cli.arqPor ? ' por ' + cli.arqPor : ''}` : 'cliente ativo na lista';
+    if (cli && cli.arq) {
+      const b = document.createElement('button'); b.className = 'bt forte'; b.type = 'button'; b.textContent = 'Restaurar cliente';
+      b.onclick = () => { for (const c of porCli[k].filter(c => c.arqCliente)) mudar('cards', c.id, Object.assign({}, c, { arq: false, arqCliente: false }), true); mudar('clientes', cli.id, Object.assign({}, cli, { arq: false })); };
+      g.querySelector('header').append(b);
+    }
+    const t = g.querySelector('table');
+    t.innerHTML = '<tr><th>Etapa</th><th>Situação</th><th class="n">Valor</th><th>Arquivado</th><th></th></tr>';
+    for (const c of porCli[k]) {
+      const tr = document.createElement('tr');
+      const sit = MARCAS.filter(([m]) => statusDe(c) === m).map(([m, rot]) => `<span class="chip${m === 'agu' ? ' agu' : ''}" style="--c:${COR[m]}">${rot}</span>`).join(' ') || '—';
+      tr.innerHTML = `<td>${NOME_ETAPA[c.etapa] || ''}</td><td>${sit}</td><td class="n">${c.valor != null ? brl(c.valor) : '—'}</td><td></td>
+        <td class="n" style="white-space:nowrap"><button class="bt" data-a="r" type="button">Restaurar</button> <button class="bt perigo" data-a="x" type="button">Excluir</button></td>`;
+      tr.children[3].textContent = `${dia(c.arqEm)}${c.arqPor ? ' · ' + c.arqPor : ''}${c.nao && c.motivo ? ' · ' + (c.motivo === 'outro' && c.motivoTxt ? c.motivoTxt : MOTIVOS[c.motivo]) : ''}`;
+      tr.querySelector('[data-a=r]').onclick = () => {
+        if (cli && cli.arq) mudar('clientes', cli.id, Object.assign({}, cli, { arq: false }), true);
+        mudar('cards', c.id, Object.assign({}, c, { arq: false, arqCliente: false }));
+      };
+      const x = tr.querySelector('[data-a=x]'); let espera;
+      x.onclick = () => { if (x.dataset.c) { clearTimeout(espera); mudar('cards', c.id, null); return; } x.dataset.c = 1; x.textContent = 'Excluir de vez?'; espera = setTimeout(() => { delete x.dataset.c; x.textContent = 'Excluir'; }, 2500); };
+      t.append(tr);
+    }
+    if (!porCli[k].length) t.innerHTML += '<tr><td colspan="5" class="semDados">Sem itens arquivados.</td></tr>';
+    box.append(g);
+  }
+}
+
+document.getElementById('desfazer').onclick = desfazer;
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && desfazerAtual && !e.target.matches('input, [contenteditable=true]')) { e.preventDefault(); desfazer(); } });
+
+// ================= configurações =================
 const configEl = document.getElementById('config');
 document.getElementById('configBtn').onclick = e => { e.stopPropagation(); configEl.classList.toggle('aberto'); };
 configEl.onclick = e => e.stopPropagation();
@@ -415,17 +1309,20 @@ cfgNome.value = cfg.nome; cfgUrl.value = cfg.url; cfgCodigo.value = cfg.codigo;
 cfgNome.onchange = () => { cfg.nome = cfgNome.value.trim(); gravar(KEY_CFG, cfg); };
 cfgUrl.onchange = cfgCodigo.onchange = () => { cfg.url = cfgUrl.value.trim(); cfg.codigo = cfgCodigo.value.trim(); gravar(KEY_CFG, cfg); conectar(); };
 
-// ---------------- janela (abrir/fechar com Win + F, controlado pelo abrir-painel.ps1) ----------------
+// ================= janela (abrir/fechar com Win + F, controlado pelo abrir-painel.ps1) =================
 function preparar(){ document.body.classList.remove('entrada', 'saindo'); document.body.classList.add('preparando'); }
 function entrar(){
   document.body.classList.remove('preparando', 'saindo'); void document.body.offsetWidth;
   document.body.classList.add('entrada'); setTimeout(() => document.body.classList.remove('entrada'), 1000);
-  aplicarTema();
+  aplicarTema(); desenharTudo();
 }
 function sair(){ document.body.classList.add('saindo'); }
 document.getElementById('fechar').onclick = () => { host ? host.postMessage('fechar') : null; };
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (configEl.classList.contains('aberto')) configEl.classList.remove('aberto'); else if (host) host.postMessage('fechar'); }
+  if (e.key !== 'Escape' || e.target.matches('input, [contenteditable=true]')) return;
+  if (configEl.classList.contains('aberto')) configEl.classList.remove('aberto');
+  else if (motivoAberto) { motivoAberto = null; desenhar(); }
+  else if (host) host.postMessage('fechar');
 });
 
 // rodinha do mouse fora de uma lista rolável: rola o quadro para os lados
@@ -438,27 +1335,34 @@ quadroEl.addEventListener('wheel', e => {
 
 // mensagens do app: código do quadro, nome, atualizações
 const botaoAtualizar = document.getElementById('atualizar');
-function mostrarAtualizacao(estado, texto){
-  botaoAtualizar.hidden = false; botaoAtualizar.dataset.s = estado;
-  document.getElementById('atualizarTxt').textContent = texto;
-}
+function mostrarAtualizacao(est, texto){ botaoAtualizar.hidden = false; botaoAtualizar.dataset.s = est; document.getElementById('atualizarTxt').textContent = texto; }
 if (host) {
   host.addEventListener('message', e => {
     let d; try { d = JSON.parse(e.data); } catch(err) { return; }
-    if (d.quadro && !cfg.codigo) { cfg.codigo = d.quadro; cfgCodigo.value = cfg.codigo; gravar(KEY_CFG, cfg); conectar(); }
+    if ('obrasLocal' in d && !conferido) {
+      const arq = d.obrasLocal;
+      if (arq && arq.cards && (Number(arq.salvoEm) || 0) > (Number(db.salvoEm) || 0)) {
+        db = { cards: arq.cards || {}, clientes: arq.clientes || {}, salvoEm: arq.salvoEm };
+        gravar(KEY_DADOS, db);
+      }
+      conferido = true; enviarCopia(); desenharTudo();
+      if (cfg.codigo) conectar();
+    }
+    if (d.quadro && !cfg.codigo) { cfg.codigo = d.quadro; cfgCodigo.value = cfg.codigo; gravar(KEY_CFG, cfg); if (conferido) conectar(); }
     const nome = d.nome || d.usuario;
     if (nome && !cfg.nome) { cfg.nome = nome; cfgNome.value = cfg.nome; gravar(KEY_CFG, cfg); }
     if (d.atualizacao) mostrarAtualizacao('pronta', `Nova versão ${d.atualizacao} · Atualizar`);
     if (d.atualizando) mostrarAtualizacao('baixando', 'Atualizando…');
     if (d.erroAtualizacao) mostrarAtualizacao('erro', 'Não foi possível atualizar · Tentar de novo');
   });
+  host.postMessage('obrasLocal?');
   host.postMessage('quadro?');
   host.postMessage('versao?');
 }
 botaoAtualizar.onclick = () => { if (botaoAtualizar.dataset.s !== 'baixando' && host) host.postMessage('atualizar'); };
 
-desenhar();
-conectar();
+desenharTudo();
+if (!host) conectar(); // no app: conecta depois de conferir a cópia do arquivo
 </script>
 </body>
 </html>

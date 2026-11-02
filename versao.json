@@ -1,10 +1,10 @@
 {
-  "versao": "1.1.0",
-  "notas": "Quadro de RT em tela cheia, botao minimizar, duas fileiras de colunas, atualizacao automatica e backup das demandas e dos clientes.",
+  "versao": "1.2.0",
+  "notas": "Quadro de RT: lista de clientes em obra, valor do orcamento, marcacoes em sequencia com data e autor, Nao fechou com motivo, Relatorios completos, Arquivados com desfazer, modo compacto, icones das etapas e protecao reforcada dos dados.",
   "arquivos": {
-    "index.html": "4a79f7bf5fd913befe743967f0b54fb885a35234b404314affd13056191ff022",
-    "obras.html": "eb51e3978753bda80563b592b393ab04f5483b772db1ad540478633451ca8cf8",
-    "abrir-painel.ps1": "edaceda7b25497a305a900924cb2de641c0616c40cc5c82871f098d1e226159b",
+    "index.html": "5ee07d3ea27f3564bb5c53be15c7582099c6980d251bf76aa378ed4d51384073",
+    "obras.html": "b1bfc2865b3b43c03620af3f4e6482e23274d5900419f0e7bc8c39b71400b085",
+    "abrir-painel.ps1": "cf02a843b69e3552d19e2c77d41131872f5e726a82d64a9b1427b7b922928d6c",
     "lib/Microsoft.Web.WebView2.Core.dll": "8219a3135436c147f8eb02fb831e99596103eebc18b6d7b794ca93f4c67018a2",
     "lib/Microsoft.Web.WebView2.WinForms.dll": "c48f8d729dc531288d2c53a6241effe7922ed1b947850b2442008a945c098c48",
     "lib/WebView2Loader.dll": "eb5335edeaa6f2122c044e82aab2351dc8c9b4e0fe5e578c71922fb61be285e7"

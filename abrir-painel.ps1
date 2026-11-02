@@ -214,9 +214,9 @@ public class Painel : Form
         try { m = e.TryGetWebMessageAsString(); } catch { }
         if (m == "config?") { EnviarTelas(); return; }
         if (m.StartsWith("backup:demandas:")) { Backup("demandas", m.Substring(16)); return; }
-        if (m == "restaurar?") {
+        if (m == "restaurar?") { // a pagina compara e fica com a versao mais nova
             string b = LerBackup("demandas");
-            if (b != null) { Log("demandas recuperadas do backup"); try { web.CoreWebView2.PostWebMessageAsString("{\"restaurar\":" + b + "}"); } catch { } }
+            try { web.CoreWebView2.PostWebMessageAsString("{\"restaurar\":" + (b ?? "null") + "}"); } catch { }
             return;
         }
         if (m.StartsWith("config:")) { AplicarConfig(m.Substring(7)); return; }
@@ -451,6 +451,11 @@ public class Painel : Form
             return;
         }
         if (m.StartsWith("backup:obras:")) { Backup("obras", m.Substring(13)); return; }
+        if (m == "obrasLocal?") {
+            string b = LerBackup("obras");
+            try { webQ.CoreWebView2.PostWebMessageAsString("{\"obrasLocal\":" + (b ?? "null") + "}"); } catch { }
+            return;
+        }
         if (m == "versao?") { if (versaoNova != null) AvisarAtualizacao(); VerificarAtualizacao(); return; }
         if (m == "atualizar") { Atualizar(); return; }
         if (m == "tema:escuro" || m == "tema:claro") {
@@ -490,9 +495,15 @@ public class Painel : Form
             if (json.Length < 2 || (json[0] != '[' && json[0] != '{')) return;
             string dir = System.IO.Path.Combine(dadosPath, "backups");
             System.IO.Directory.CreateDirectory(dir);
-            // lista ficou vazia: guarda antes a versao anterior com conteudo, por seguranca
             string atual = System.IO.Path.Combine(dir, tipo + ".json");
-            if ((json == "[]" || json == "{}") && System.IO.File.Exists(atual) && System.IO.File.ReadAllText(atual).Trim().Length > 2)
+            string anterior = System.IO.File.Exists(atual) ? System.IO.File.ReadAllText(atual).Trim() : "";
+            // nunca grava uma copia mais velha por cima de uma mais nova
+            long novoEm = SalvoEm(json), atualEm = SalvoEm(anterior);
+            if (novoEm > 0 && atualEm > novoEm) { Log("backup de " + tipo + " ignorado: copia mais antiga que a ja salva"); return; }
+            // lista ficou vazia: guarda antes a versao anterior com conteudo, por seguranca
+            bool vazio = json == "[]" || json == "{}" || json.Contains("\"tarefas\":[]") || (json.Contains("\"cards\":{}") && json.Contains("\"clientes\":{}"));
+            bool antVazio = anterior.Length <= 2 || anterior.Contains("\"tarefas\":[]") || (anterior.Contains("\"cards\":{}") && anterior.Contains("\"clientes\":{}"));
+            if (vazio && System.IO.File.Exists(atual) && !antVazio)
                 System.IO.File.Copy(atual, System.IO.Path.Combine(dir, tipo + "-antes-de-esvaziar-" + DateTime.Now.ToString("yyyy-MM-dd-HHmmss") + ".json"), true);
             GravarSeguro(atual, json);
             GravarSeguro(System.IO.Path.Combine(dir, tipo + "-" + DateTime.Now.ToString("yyyy-MM-dd") + ".json"), json);
@@ -500,6 +511,12 @@ public class Painel : Form
             Array.Sort(dias);
             for (int i = 0; i < dias.Length - 30; i++) System.IO.File.Delete(dias[i]);
         } catch (Exception e) { Log("backup de " + tipo + " falhou: " + e.Message); }
+    }
+
+    static long SalvoEm(string json)
+    {
+        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(json ?? "", "\"salvoEm\"\\s*:\\s*(\\d+)");
+        long v; return m.Success && long.TryParse(m.Groups[1].Value, out v) ? v : 0;
     }
 
     static string LerBackup(string tipo)

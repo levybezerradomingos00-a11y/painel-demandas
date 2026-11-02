@@ -405,6 +405,10 @@ const KEY = 'painel-demandas-v1';
 let tarefas = [];
 let semDadosLocais = false;
 try { const bruto = localStorage.getItem(KEY); semDadosLocais = bruto === null; tarefas = JSON.parse(bruto) || []; } catch(e) { tarefas = []; }
+// quando foi a última gravação local: comparada com o arquivo do app, vence a mais nova
+let salvoEm = Number((() => { try { return localStorage.getItem(KEY + '-salvoEm'); } catch(e) { return 0; } })()) || 0;
+const appHost = window.chrome && window.chrome.webview;
+let conferido = !appHost; // até comparar com o arquivo do app, nada é enviado para ele
 let prioNova = 'media';
 const KEY_VISTA = 'painel-demandas-vista';
 let vista = {modo:'grupos', ocultas:[], tema:'claro'};
@@ -419,13 +423,14 @@ const ICO_MINI = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" stroke-
 const abertas = new Set(); // demandas com a lista de micro demandas aberta
 const ICO_DEL = '<svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg>';
 
-let backupEspera;
+// cada alteração vai na hora para o arquivo do app (gravação segura em disco, com cópia diária);
+// o armazenamento do navegador sozinho pode perder as últimas mudanças se o app fechar de repente
 const salvar = () => {
-  try { localStorage.setItem(KEY, JSON.stringify(tarefas)); } catch(e){}
-  // cópia de segurança num arquivo do computador (o app guarda a atual + uma por dia)
-  clearTimeout(backupEspera);
-  backupEspera = setTimeout(() => { try { window.chrome.webview.postMessage('backup:demandas:' + JSON.stringify(tarefas)); } catch(e){} }, 2000);
+  salvoEm = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(tarefas)); localStorage.setItem(KEY + '-salvoEm', String(salvoEm)); } catch(e){}
+  enviarCopia();
 };
+function enviarCopia(){ if (conferido && appHost) { try { appHost.postMessage('backup:demandas:' + JSON.stringify({ salvoEm, tarefas })); } catch(e){} } }
 const hoje = () => new Date().toDateString();
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const ativas = p => tarefas.filter(t => !t.feitaEm && t.prio === p).sort((a,b) => a.ordem - b.ordem);
@@ -435,7 +440,7 @@ const corDe = p => (PRIOS.find(x => x.id === p) || {cor:'var(--sub)'}).cor;
 
 // limpa concluídas com mais de 7 dias
 const limite = Date.now() - 7*864e5;
-tarefas = tarefas.filter(t => !t.feitaEm || t.feitaEm > limite); salvar();
+tarefas = tarefas.filter(t => !t.feitaEm || t.feitaEm > limite); // grava junto com a próxima alteração (não marca a cópia como nova)
 
 // animação FLIP: cada card desliza da posição antiga para a nova
 function posicoes(){
@@ -819,16 +824,23 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // o abrir-painel.ps1 chama entrar() quando o painel volta (Win+Espaço)
 entrar();
 
-// recuperação: se este computador não tem nenhuma demanda salva, pede ao app o último backup
-if (window.chrome && window.chrome.webview) {
-  window.chrome.webview.addEventListener('message', e => {
+// ao abrir: compara com o arquivo do app e fica com a versão mais nova (protege contra perda e contra cópia velha)
+if (appHost) {
+  appHost.addEventListener('message', e => {
     let d; try { d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch(err) { return; }
-    if (d && Array.isArray(d.restaurar) && semDadosLocais && !tarefas.length) {
-      tarefas = d.restaurar; semDadosLocais = false; salvar(); render();
+    if (!d || !('restaurar' in d) || conferido) return;
+    const arq = d.restaurar;
+    const lista = Array.isArray(arq) ? arq : arq && Array.isArray(arq.tarefas) ? arq.tarefas : null;
+    const arqEm = arq && !Array.isArray(arq) ? Number(arq.salvoEm) || 0 : 0;
+    if (lista && ((semDadosLocais && !tarefas.length) || arqEm > salvoEm)) {
+      tarefas = lista; salvoEm = arqEm || Date.now(); semDadosLocais = false;
+      try { localStorage.setItem(KEY, JSON.stringify(tarefas)); localStorage.setItem(KEY + '-salvoEm', String(salvoEm)); } catch(err){}
+      render();
     }
+    conferido = true;
+    enviarCopia(); // o arquivo passa a refletir o que está na tela
   });
-  if (semDadosLocais) window.chrome.webview.postMessage('restaurar?');
-  else salvar(); // garante um backup logo ao abrir
+  appHost.postMessage('restaurar?');
 }
 
 // atualiza a data/contagem quando vira o dia
